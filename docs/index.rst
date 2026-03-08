@@ -10,6 +10,7 @@ generation and walk-forward backtesting.
 
    getting_started
    api/index
+   changelog
 
 Indices and tables
 ==================
