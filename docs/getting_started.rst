@@ -8,13 +8,13 @@ Install from PyPI:
 
 .. code-block:: bash
 
-   pip install quaver
+   pip install pyquaver
 
 Or with `uv <https://docs.astral.sh/uv/>`_:
 
 .. code-block:: bash
 
-   uv add quaver
+   uv add pyquaver
 
 Optional extras
 ^^^^^^^^^^^^^^^
@@ -22,13 +22,13 @@ Optional extras
 .. code-block:: bash
 
    # Interactive notebooks with yfinance data and matplotlib
-   pip install quaver[notebooks]
+   pip install pyquaver[notebooks]
 
    # Development tools (pytest, ruff, mypy)
-   pip install quaver[dev]
+   pip install pyquaver[dev]
 
    # Sphinx documentation build
-   pip install quaver[docs]
+   pip install pyquaver[docs]
 
 Install from source
 ^^^^^^^^^^^^^^^^^^^

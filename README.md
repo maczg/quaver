@@ -5,20 +5,20 @@ Standalone Python library for quantitative trading signal generation and walk-fo
 ## Installation
 
 ```bash
-pip install quaver
+pip install pyquaver
 ```
 
 With optional extras:
 
 ```bash
 # Interactive notebooks with yfinance data
-pip install quaver[notebooks]
+pip install pyquaver[notebooks]
 
 # Development tools (pytest, ruff, mypy)
-pip install quaver[dev]
+pip install pyquaver[dev]
 
 # Sphinx documentation
-pip install quaver[docs]
+pip install pyquaver[docs]
 ```
 
 ## Quick Start
