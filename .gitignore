@@ -1,0 +1,50 @@
+# macOS
+.DS_Store
+
+# Custom
+plans/
+
+
+# Project-specific
+trash/
+# Ignore notebook that start with an underscore, which are used for testing and development purposes
+notebooks/_*.ipynb
+
+# JetBrains IDE
+.idea/**
+!.idea/.gitignore
+!.idea/modules.xml
+!.idea/vcs.xml
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Environments
+.env*
+!.env.example
+.venv/
+venv/
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Type checking / linting
+.mypy_cache/
+.ruff_cache/
+
+# Sphinx documentation
+docs/_build/
+

@@ -1,0 +1,52 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "quaver"
+version = "0.1.0"
+authors = [
+    { name="Massimo Gollo", email="dev@massimogollo.cloud" },
+]
+maintainers = [
+    { name="Massimo Gollo", email="dev@massimogollo.cloud" },
+]
+description = "Standalone PyPI library for quantitative trading signal generation and backtesting"
+readme = "README.md"
+license = "MIT"
+keywords = ["quantitative trading", "signal generation", "backtesting", "finance", "algorithmic trading"]
+requires-python = ">=3.12"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Office/Business :: Financial :: Investment",
+    "Typing :: Typed",
+]
+dependencies = [
+    "numpy>=2.4.2",
+    "pandas>=3.0.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov",
+    "ruff>=0.4",
+    "mypy>=1.10",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["quaver"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
