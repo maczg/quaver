@@ -9,6 +9,7 @@ generation and walk-forward backtesting.
    :caption: Contents
 
    getting_started
+   strategies/index
    api/index
    changelog
 
