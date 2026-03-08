@@ -10,3 +10,6 @@ including the financial background, signal logic, and tuning parameters.
    mean_reversion
    regime_mean_reversion
    vsa_stopping_volume
+   breakout_consolidation
+   pullback_trend
+   reversial_support
