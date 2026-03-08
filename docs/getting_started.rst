@@ -4,10 +4,39 @@ Getting Started
 Installation
 ------------
 
-Install from source using pip:
+Install from PyPI:
 
 .. code-block:: bash
 
+   pip install quaver
+
+Or with `uv <https://docs.astral.sh/uv/>`_:
+
+.. code-block:: bash
+
+   uv add quaver
+
+Optional extras
+^^^^^^^^^^^^^^^
+
+.. code-block:: bash
+
+   # Interactive notebooks with yfinance data and matplotlib
+   pip install quaver[notebooks]
+
+   # Development tools (pytest, ruff, mypy)
+   pip install quaver[dev]
+
+   # Sphinx documentation build
+   pip install quaver[docs]
+
+Install from source
+^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: bash
+
+   git clone https://github.com/maczg/quaver.git
+   cd quaver
    pip install -e ".[dev,docs]"
 
 Quick Example
@@ -20,7 +49,7 @@ Run a single-asset mean-reversion backtest:
    import pandas as pd
    from quaver.backtest import run_backtest
 
-   # Load your OHLCV data
+   # Load your OHLCV data (columns: ts, open, high, low, close, volume)
    candles = pd.read_csv("data.csv")
 
    result = run_backtest(
