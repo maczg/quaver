@@ -38,6 +38,26 @@ class StubStrategy(BaseStrategy):
         return None
 
 
+class SequenceStrategy(BaseStrategy):
+    """Emits a sequence of signals at specified bar indices."""
+
+    def __init__(self, signals: dict[int, SignalDirection]):
+        super().__init__(parameters={})
+        self.signals = signals  # {window_size: direction}
+
+    def validate_parameters(self) -> None:
+        pass
+
+    def get_required_candle_count(self) -> int:
+        return 10
+
+    def compute(self, candles: pd.DataFrame, as_of: datetime) -> SignalOutput | None:
+        n = len(candles)
+        if n in self.signals:
+            return SignalOutput(direction=self.signals[n], confidence=0.9)
+        return None
+
+
 def make_candles_df(n=100, start_price=100.0):
     rows = []
     ts = datetime(2020, 1, 1)
@@ -144,3 +164,31 @@ def test_run_is_idempotent():
     r2 = engine.run(df)
     assert r1.total_trades == r2.total_trades
     assert r1.final_cash == pytest.approx(r2.final_cash)
+
+
+def test_buy_reverses_short_position():
+    """SELL then BUY: closes short and opens long (close-and-reverse)."""
+    # SELL at bar 20 opens short, BUY at bar 30 should close short + open long
+    # force-close at end closes the long → 2 trades total
+    strategy = SequenceStrategy({
+        20: SignalDirection.SELL,
+        30: SignalDirection.BUY,
+    })
+    portfolio = Portfolio(initial_capital=10_000)
+    engine = BacktestEngine(strategy, portfolio, "TEST", allow_shorting=True)
+    df = normalise_candles(make_candles_df(60))
+    result = engine.run(df)
+    assert result.total_trades == 2  # closed short + force-closed long
+
+
+def test_sell_reverses_long_position():
+    """BUY then SELL: closes the long position."""
+    strategy = SequenceStrategy({
+        20: SignalDirection.BUY,
+        30: SignalDirection.SELL,
+    })
+    portfolio = Portfolio(initial_capital=10_000)
+    engine = BacktestEngine(strategy, portfolio, "TEST")
+    df = normalise_candles(make_candles_df(60))
+    result = engine.run(df)
+    assert result.total_trades == 1  # closed long

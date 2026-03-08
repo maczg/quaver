@@ -115,6 +115,27 @@ def test_multi_engine_run_returns_both_results():
     assert results["B"].instrument_id == "B"
 
 
+def test_pairs_legs_have_equal_trade_count():
+    """Both legs of a pairs strategy must have the same trade count."""
+    df_a, df_b = make_pair_candles(300, spread_offset=8.0, seed=123)
+    candles_map = {
+        "A": normalise_candles(df_a),
+        "B": normalise_candles(df_b),
+    }
+    portfolios = {
+        "A": Portfolio(initial_capital=10_000),
+        "B": Portfolio(initial_capital=10_000),
+    }
+    params = {**PARAMS, "entry_z": 1.5, "exit_z": 0.3}
+    strategy = PairsMeanReversionStrategy(parameters=params)
+    engine = MultiAssetBacktestEngine(
+        strategy=strategy, portfolios=portfolios, allow_shorting=True,
+    )
+    results = engine.run(candles_map)
+    assert results["A"].total_trades == results["B"].total_trades
+    assert results["A"].total_trades > 0, "Expected at least one trade"
+
+
 def test_registry_kind_detection():
     assert StrategyRegistry.get_strategy_kind("pairs_mean_reversion") == "multi"
     assert StrategyRegistry.get_strategy_kind("mean_reversion") == "single"

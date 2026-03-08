@@ -220,7 +220,13 @@ class MultiAssetBacktestEngine:
             if portfolio.is_flat():
                 portfolio.open_long(instrument_id, ts, price, signal)
             else:
-                log.debug("BUY ignored for '%s': position already open", instrument_id)
+                pos = portfolio._open_position
+                if pos is not None and pos.direction == SignalDirection.SELL:
+                    # Close-and-reverse: close the short, then open long
+                    portfolio.close_short(ts, price, signal)
+                    portfolio.open_long(instrument_id, ts, price, signal)
+                else:
+                    log.debug("BUY ignored for '%s': long position already open", instrument_id)
 
         elif direction == SignalDirection.SELL:
             pos = portfolio._open_position

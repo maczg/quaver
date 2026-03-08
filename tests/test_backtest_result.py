@@ -109,4 +109,16 @@ def test_empty_result():
     assert r.win_rate == 0.0
     assert r.max_drawdown == 0.0
     assert r.sharpe_ratio == 0.0
-    assert r.profit_factor == float("inf")
+    assert r.profit_factor == 0.0
+
+
+def test_summary_values_are_native_python_types():
+    """All numeric values in summary() must be native Python int or float, not numpy scalars."""
+    r = make_result([10.0, -5.0, 8.0, -3.0])
+    s = r.summary()
+    for key, value in s.items():
+        if isinstance(value, str):
+            continue
+        assert type(value) in (int, float), (
+            f"summary()['{key}'] is {type(value).__name__}, expected int or float"
+        )
