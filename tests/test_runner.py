@@ -16,10 +16,16 @@ def make_candles(n=200, seed=42):
     price = 100.0
     for _ in range(n):
         price += rng.normal(0, 1)
-        rows.append({
-            "ts": ts, "open": price, "high": price + 1,
-            "low": price - 1, "close": price, "volume": 1000.0,
-        })
+        rows.append(
+            {
+                "ts": ts,
+                "open": price,
+                "high": price + 1,
+                "low": price - 1,
+                "close": price,
+                "volume": 1000.0,
+            }
+        )
         ts += timedelta(days=1)
     return pd.DataFrame(rows)
 
@@ -66,8 +72,11 @@ def test_run_backtest_with_multi_asset_engine_raises():
         run_backtest(
             engine_name="pairs_mean_reversion",
             parameters={
-                "instrument_a": "A", "instrument_b": "B",
-                "spread_window": 30, "entry_z": 2.0, "exit_z": 0.5,
+                "instrument_a": "A",
+                "instrument_b": "B",
+                "spread_window": 30,
+                "entry_z": 2.0,
+                "exit_z": 0.5,
             },
             candles=make_candles(),
             instrument_id="A",
@@ -79,8 +88,11 @@ def test_missing_instrument_raises():
         run_multi_asset_backtest(
             engine_name="pairs_mean_reversion",
             parameters={
-                "instrument_a": "A", "instrument_b": "B",
-                "spread_window": 30, "entry_z": 2.0, "exit_z": 0.5,
+                "instrument_a": "A",
+                "instrument_b": "B",
+                "spread_window": 30,
+                "entry_z": 2.0,
+                "exit_z": 0.5,
             },
             candles_map={"A": make_candles()},  # B is missing
         )
@@ -91,7 +103,7 @@ def test_insufficient_candles_raises():
         run_backtest(
             engine_name="mean_reversion",
             parameters={"fast_period": 10, "slow_period": 30, "threshold": 0.01},
-            candles=make_candles(10),   # way below required
+            candles=make_candles(10),  # way below required
             instrument_id="X",
         )
 
@@ -109,15 +121,19 @@ def test_run_multi_asset_end_to_end():
         pa += c
         pb += c + 0.2
         for rows, p in [(rows_a, pa), (rows_b, pb)]:
-            rows.append({"ts": ts, "open": p, "high": p+0.5,
-                         "low": p-0.5, "close": p, "volume": 1000.0})
+            rows.append(
+                {"ts": ts, "open": p, "high": p + 0.5, "low": p - 0.5, "close": p, "volume": 1000.0}
+            )
         ts += timedelta(days=1)
 
     results = run_multi_asset_backtest(
         engine_name="pairs_mean_reversion",
         parameters={
-            "instrument_a": "A", "instrument_b": "B",
-            "spread_window": 30, "entry_z": 2.0, "exit_z": 0.5,
+            "instrument_a": "A",
+            "instrument_b": "B",
+            "spread_window": 30,
+            "entry_z": 2.0,
+            "exit_z": 0.5,
         },
         candles_map={"A": pd.DataFrame(rows_a), "B": pd.DataFrame(rows_b)},
         initial_capital=10_000.0,

@@ -30,18 +30,15 @@ _DEFAULTS: dict[str, Any] = {
     # lookbacks
     "sma_window": 20,
     "trend_sma": 20,
-
     # matrix thresholds
     "vol_high": 1.5,
     "vol_low": 0.7,
     "spread_big": 1.3,
     "spread_small": 0.7,
-
     # stopping volume pattern thresholds
     "stopping_vol_rel": 2.0,
     "buy_close_pos_min": 0.4,
     "sell_close_pos_max": 0.6,
-
     # enable/disable patterns
     "enable_buy": True,
     "enable_sell": True,
@@ -174,9 +171,9 @@ class VSAStoppingVolumeStrategy(BaseStrategy):
         return max(n, t) + 5
 
     def compute(
-            self,
-            candles: pd.DataFrame,
-            as_of: datetime,
+        self,
+        candles: pd.DataFrame,
+        as_of: datetime,
     ) -> SignalOutput | None:
         """Run VSA stopping-volume logic on a single listing's candles.
 
@@ -292,7 +289,9 @@ class VSAStoppingVolumeStrategy(BaseStrategy):
         direction = SignalDirection.BUY if buy_ok else SignalDirection.SELL
 
         # Confidence: scale with excess relative volume + absorption bonus
-        vol_score = min(max((vr - stopping_vol_rel) / max(stopping_vol_rel, 1e-9), 0.0) / 2.0 + 0.5, 1.0)
+        vol_score = min(
+            max((vr - stopping_vol_rel) / max(stopping_vol_rel, 1e-9), 0.0) / 2.0 + 0.5, 1.0
+        )
         absorption_bonus = 0.1 if matrix_state == "absorption_trap" else 0.0
         confidence = min(vol_score + absorption_bonus, 1.0)
 
@@ -336,25 +335,57 @@ class VSAStoppingVolumeStrategy(BaseStrategy):
         return {
             "type": "object",
             "properties": {
-                "sma_window": {"type": "integer", "minimum": 1,
-                               "description": "SMA window for volume/spread normalization"},
-                "trend_sma": {"type": "integer", "minimum": 1,
-                              "description": "SMA window for local trend filter on close"},
-                "vol_high": {"type": "number", "exclusiveMinimum": 0,
-                             "description": "High relative volume threshold"},
-                "vol_low": {"type": "number", "exclusiveMinimum": 0,
-                            "description": "Low relative volume threshold"},
-                "spread_big": {"type": "number", "exclusiveMinimum": 0,
-                               "description": "Large relative spread threshold"},
-                "spread_small": {"type": "number", "exclusiveMinimum": 0,
-                                 "description": "Small relative spread threshold"},
-                "stopping_vol_rel": {"type": "number", "exclusiveMinimum": 0,
-                                     "description": "Relative volume threshold for stopping-volume pattern"},
-                "buy_close_pos_min": {"type": "number", "minimum": 0, "maximum": 1,
-                                      "description": "Min close position for BUY pattern"},
-                "sell_close_pos_max": {"type": "number", "minimum": 0, "maximum": 1,
-                                       "description": "Max close position for SELL pattern"},
-                "enable_buy": {"type": "boolean", "description": "Enable BUY stopping-volume signals"},
+                "sma_window": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "SMA window for volume/spread normalization",
+                },
+                "trend_sma": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "SMA window for local trend filter on close",
+                },
+                "vol_high": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "description": "High relative volume threshold",
+                },
+                "vol_low": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "description": "Low relative volume threshold",
+                },
+                "spread_big": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "description": "Large relative spread threshold",
+                },
+                "spread_small": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "description": "Small relative spread threshold",
+                },
+                "stopping_vol_rel": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "description": "Relative volume threshold for stopping-volume pattern",
+                },
+                "buy_close_pos_min": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "Min close position for BUY pattern",
+                },
+                "sell_close_pos_max": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "Max close position for SELL pattern",
+                },
+                "enable_buy": {
+                    "type": "boolean",
+                    "description": "Enable BUY stopping-volume signals",
+                },
                 "enable_sell": {"type": "boolean", "description": "Enable SELL symmetric signals"},
             },
             "required": list(_DEFAULTS.keys()),

@@ -33,12 +33,13 @@ def test_open_close_short_pnl():
 
 def test_no_double_open_long(caplog):
     import logging
+
     p = Portfolio(initial_capital=10_000, quantity_per_trade=1.0)
     p.open_long("AAPL", TS, 100.0, make_signal())
     with caplog.at_level(logging.WARNING):
         p.open_long("AAPL", TS2, 110.0, make_signal())
     assert len(p._closed_trades) == 0
-    assert p._open_position.entry_price == 100.0   # unchanged
+    assert p._open_position.entry_price == 100.0  # unchanged
 
 
 def test_reset_restores_state():

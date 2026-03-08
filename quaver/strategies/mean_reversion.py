@@ -82,9 +82,7 @@ class MeanReversionStrategy(BaseStrategy):
         if not isinstance(slow, int) or slow < 1:
             raise ValueError(f"slow_period must be a positive integer, got {slow!r}")
         if fast >= slow:
-            raise ValueError(
-                f"fast_period ({fast}) must be less than slow_period ({slow})"
-            )
+            raise ValueError(f"fast_period ({fast}) must be less than slow_period ({slow})")
         if not isinstance(threshold, (int, float)) or threshold <= 0:
             raise ValueError(f"threshold must be a positive number, got {threshold!r}")
 
@@ -140,17 +138,12 @@ class MeanReversionStrategy(BaseStrategy):
             return None
 
         raw_confidence = min(abs(divergence) / threshold * 0.3, 1.0)
-        direction = (
-            SignalDirection.BUY if divergence < -threshold else SignalDirection.SELL
-        )
+        direction = SignalDirection.BUY if divergence < -threshold else SignalDirection.SELL
 
         return SignalOutput(
             direction=direction,
             confidence=round(raw_confidence, 4),
-            notes=(
-                f"fast_ma={fast_ma:.4f} slow_ma={slow_ma:.4f} "
-                f"divergence={divergence:.4f}"
-            ),
+            notes=(f"fast_ma={fast_ma:.4f} slow_ma={slow_ma:.4f} divergence={divergence:.4f}"),
             metadata={
                 "fast_period": fast_period,
                 "slow_period": slow_period,

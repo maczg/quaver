@@ -240,9 +240,16 @@ class RegimeMeanReversionStrategy(BaseStrategy):
         p = self.parameters
 
         int_keys = [
-            "adx_period", "bb_period", "bbw_percentile_window",
-            "bbw_sma_period", "bbw_lookback", "sma_fast", "sma_slow",
-            "volume_sma_period", "min_events", "candle_count",
+            "adx_period",
+            "bb_period",
+            "bbw_percentile_window",
+            "bbw_sma_period",
+            "bbw_lookback",
+            "sma_fast",
+            "sma_slow",
+            "volume_sma_period",
+            "min_events",
+            "candle_count",
         ]
         for key in int_keys:
             val = p.get(key, _DEFAULTS[key])
@@ -250,11 +257,18 @@ class RegimeMeanReversionStrategy(BaseStrategy):
                 raise ValueError(f"{key} must be a positive integer, got {val!r}")
 
         float_keys = [
-            "bb_std", "adx_trend_threshold", "adx_transition_low",
-            "volume_strong_threshold", "volume_normal_threshold",
-            "return_threshold", "success_threshold",
-            "prob_threshold_base", "prob_threshold_weak", "prob_threshold_strong",
-            "winloss_threshold_weak", "winloss_threshold_strong",
+            "bb_std",
+            "adx_trend_threshold",
+            "adx_transition_low",
+            "volume_strong_threshold",
+            "volume_normal_threshold",
+            "return_threshold",
+            "success_threshold",
+            "prob_threshold_base",
+            "prob_threshold_weak",
+            "prob_threshold_strong",
+            "winloss_threshold_weak",
+            "winloss_threshold_strong",
         ]
         for key in float_keys:
             val = p.get(key, _DEFAULTS[key])
@@ -268,9 +282,7 @@ class RegimeMeanReversionStrategy(BaseStrategy):
         sma_fast = p.get("sma_fast", _DEFAULTS["sma_fast"])
         sma_slow = p.get("sma_slow", _DEFAULTS["sma_slow"])
         if sma_fast >= sma_slow:
-            raise ValueError(
-                f"sma_fast ({sma_fast}) must be less than sma_slow ({sma_slow})"
-            )
+            raise ValueError(f"sma_fast ({sma_fast}) must be less than sma_slow ({sma_slow})")
 
     def get_required_candle_count(self) -> int:
         """Return the number of historical candles required by this strategy.
@@ -283,9 +295,9 @@ class RegimeMeanReversionStrategy(BaseStrategy):
         return self._p("candle_count")
 
     def compute(
-            self,
-            candles: pd.DataFrame,
-            as_of: datetime,
+        self,
+        candles: pd.DataFrame,
+        as_of: datetime,
     ) -> SignalOutput | None:
         """Run regime-based mean-reversion logic on a single listing's candles.
 
@@ -342,7 +354,13 @@ class RegimeMeanReversionStrategy(BaseStrategy):
 
         # -- Classify all regimes --
         regimes = self._classify_all_regimes(
-            adx_arr, bbw_expanding, bbw_low, vol_rel, close, sma_f, sma_s,
+            adx_arr,
+            bbw_expanding,
+            bbw_low,
+            vol_rel,
+            close,
+            sma_f,
+            sma_s,
         )
 
         # -- Latest bar index --
@@ -355,8 +373,10 @@ class RegimeMeanReversionStrategy(BaseStrategy):
 
         # Only generate signals for trending regimes
         if current_regime not in (
-                TREND_STRONG_UP, TREND_STRONG_DOWN,
-                TREND_WEAK_UP, TREND_WEAK_DOWN,
+            TREND_STRONG_UP,
+            TREND_STRONG_DOWN,
+            TREND_WEAK_UP,
+            TREND_WEAK_DOWN,
         ):
             return None
 
@@ -380,9 +400,9 @@ class RegimeMeanReversionStrategy(BaseStrategy):
     # -- Private helpers --
 
     def _compute_bbw_expanding(
-            self,
-            bbw: NDArray[np.float64],
-            bbw_sma: NDArray[np.float64],
+        self,
+        bbw: NDArray[np.float64],
+        bbw_sma: NDArray[np.float64],
     ) -> NDArray[np.bool_]:
         """Compute a boolean array indicating BBW expansion at each bar.
 
@@ -408,9 +428,9 @@ class RegimeMeanReversionStrategy(BaseStrategy):
         return result
 
     def _compute_bbw_low(
-            self,
-            bbw: NDArray[np.float64],
-            bbw_pct: NDArray[np.float64],
+        self,
+        bbw: NDArray[np.float64],
+        bbw_pct: NDArray[np.float64],
     ) -> NDArray[np.bool_]:
         """Compute a boolean array indicating BBW compression at each bar.
 
@@ -435,14 +455,14 @@ class RegimeMeanReversionStrategy(BaseStrategy):
         return result
 
     def _classify_regime(
-            self,
-            adx_val: float,
-            bbw_expanding: bool,
-            bbw_low: bool,
-            vol_rel_val: float,
-            close_val: float,
-            sma_f_val: float,
-            sma_s_val: float,
+        self,
+        adx_val: float,
+        bbw_expanding: bool,
+        bbw_low: bool,
+        vol_rel_val: float,
+        close_val: float,
+        sma_f_val: float,
+        sma_s_val: float,
     ) -> str | None:
         """Classify a single bar into one of the ten regime labels.
 
@@ -488,15 +508,15 @@ class RegimeMeanReversionStrategy(BaseStrategy):
                 base = "TREND_WEAK"
             # Direction
             if (
-                    not np.isnan(sma_f_val)
-                    and not np.isnan(sma_s_val)
-                    and close_val > sma_f_val > sma_s_val
+                not np.isnan(sma_f_val)
+                and not np.isnan(sma_s_val)
+                and close_val > sma_f_val > sma_s_val
             ):
                 return f"{base}_UP"
             elif (
-                    not np.isnan(sma_f_val)
-                    and not np.isnan(sma_s_val)
-                    and close_val < sma_f_val < sma_s_val
+                not np.isnan(sma_f_val)
+                and not np.isnan(sma_s_val)
+                and close_val < sma_f_val < sma_s_val
             ):
                 return f"{base}_DOWN"
             else:
@@ -515,14 +535,14 @@ class RegimeMeanReversionStrategy(BaseStrategy):
                 return RANGE
 
     def _classify_all_regimes(
-            self,
-            adx_arr: NDArray[np.float64],
-            bbw_expanding: NDArray[np.bool_],
-            bbw_low: NDArray[np.bool_],
-            vol_rel: NDArray[np.float64],
-            close: NDArray[np.float64],
-            sma_f: NDArray[np.float64],
-            sma_s: NDArray[np.float64],
+        self,
+        adx_arr: NDArray[np.float64],
+        bbw_expanding: NDArray[np.bool_],
+        bbw_low: NDArray[np.bool_],
+        vol_rel: NDArray[np.float64],
+        close: NDArray[np.float64],
+        sma_f: NDArray[np.float64],
+        sma_s: NDArray[np.float64],
     ) -> list[str | None]:
         """Classify the market regime for every bar in the series.
 
@@ -562,11 +582,11 @@ class RegimeMeanReversionStrategy(BaseStrategy):
         return regimes
 
     def _compute_probabilities(
-            self,
-            returns: NDArray[np.float64],
-            regimes: list[str | None],
-            current_regime: str,
-            t: int,
+        self,
+        returns: NDArray[np.float64],
+        regimes: list[str | None],
+        current_regime: str,
+        t: int,
     ) -> ProbabilityResult | None:
         """Compute expanding-window conditional probabilities up to bar *t*.
 
@@ -679,14 +699,14 @@ class RegimeMeanReversionStrategy(BaseStrategy):
         )
 
     def _generate_signal(
-            self,
-            regime: str,
-            curr_return: float,
-            probs: ProbabilityResult,
-            is_long: bool,
-            adx_val: float | None,
-            bbw_val: float | None,
-            vol_rel_val: float | None,
+        self,
+        regime: str,
+        curr_return: float,
+        probs: ProbabilityResult,
+        is_long: bool,
+        adx_val: float | None,
+        bbw_val: float | None,
+        vol_rel_val: float | None,
     ) -> SignalOutput | None:
         """Apply threshold checks and produce a BUY or SELL signal.
 
@@ -727,12 +747,10 @@ class RegimeMeanReversionStrategy(BaseStrategy):
         # Determine which thresholds to use
         is_strong = "STRONG" in regime
         prob_threshold_regime = (
-            self._p("prob_threshold_strong") if is_strong
-            else self._p("prob_threshold_weak")
+            self._p("prob_threshold_strong") if is_strong else self._p("prob_threshold_weak")
         )
         winloss_threshold = (
-            self._p("winloss_threshold_strong") if is_strong
-            else self._p("winloss_threshold_weak")
+            self._p("winloss_threshold_strong") if is_strong else self._p("winloss_threshold_weak")
         )
 
         # Check 1: current return triggers dip/pop
@@ -804,15 +822,27 @@ class RegimeMeanReversionStrategy(BaseStrategy):
                 "volume_sma_period": {"type": "integer", "minimum": 1, "default": 20},
                 "adx_trend_threshold": {"type": "number", "exclusiveMinimum": 0, "default": 21.0},
                 "adx_transition_low": {"type": "number", "exclusiveMinimum": 0, "default": 20.0},
-                "volume_strong_threshold": {"type": "number", "exclusiveMinimum": 0, "default": 1.2},
-                "volume_normal_threshold": {"type": "number", "exclusiveMinimum": 0, "default": 1.0},
+                "volume_strong_threshold": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "default": 1.2,
+                },
+                "volume_normal_threshold": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "default": 1.0,
+                },
                 "return_threshold": {"type": "number", "exclusiveMinimum": 0, "default": 0.02},
                 "success_threshold": {"type": "number", "exclusiveMinimum": 0, "default": 0.005},
                 "prob_threshold_base": {"type": "number", "exclusiveMinimum": 0, "default": 0.50},
                 "prob_threshold_weak": {"type": "number", "exclusiveMinimum": 0, "default": 0.50},
                 "prob_threshold_strong": {"type": "number", "exclusiveMinimum": 0, "default": 0.50},
                 "winloss_threshold_weak": {"type": "number", "exclusiveMinimum": 0, "default": 1.3},
-                "winloss_threshold_strong": {"type": "number", "exclusiveMinimum": 0, "default": 1.3},
+                "winloss_threshold_strong": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "default": 1.3,
+                },
                 "safemargin": {"type": "number", "minimum": 0, "default": 0.0},
                 "min_events": {"type": "integer", "minimum": 1, "default": 12},
                 "candle_count": {"type": "integer", "minimum": 1, "default": 500},

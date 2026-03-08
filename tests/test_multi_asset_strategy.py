@@ -29,10 +29,16 @@ def make_pair_candles(n=200, spread_offset=0.0, seed=42):
         price_a += change
         price_b += change + spread_offset + noise_b
         for rows, price in [(rows_a, price_a), (rows_b, price_b)]:
-            rows.append({
-                "ts": ts, "open": price, "high": price + 0.5,
-                "low": price - 0.5, "close": price, "volume": 1_000.0,
-            })
+            rows.append(
+                {
+                    "ts": ts,
+                    "open": price,
+                    "high": price + 0.5,
+                    "low": price - 0.5,
+                    "close": price,
+                    "volume": 1_000.0,
+                }
+            )
         ts += timedelta(days=1)
     return pd.DataFrame(rows_a), pd.DataFrame(rows_b)
 

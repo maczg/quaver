@@ -70,9 +70,7 @@ class MultiAssetBacktestEngine:
         self.allow_shorting = allow_shorting
         self.timestamp_overlap_warn_threshold = timestamp_overlap_warn_threshold
 
-    def run(
-        self, candles_map: dict[str, pd.DataFrame]
-    ) -> dict[str, BacktestResult]:
+    def run(self, candles_map: dict[str, pd.DataFrame]) -> dict[str, BacktestResult]:
         """Run the multi-asset backtest.
 
         All portfolios are reset before iteration begins.  Instruments are
@@ -93,10 +91,7 @@ class MultiAssetBacktestEngine:
             p.reset()
 
         # Build shared timeline (sorted intersection of all timestamps)
-        ts_sets = {
-            iid: set(df[self.ts_column].tolist())
-            for iid, df in candles_map.items()
-        }
+        ts_sets = {iid: set(df[self.ts_column].tolist()) for iid, df in candles_map.items()}
         shared_ts = sorted(set.intersection(*ts_sets.values()))
 
         # Warn if intersection is significantly smaller than any instrument's history
@@ -131,7 +126,7 @@ class MultiAssetBacktestEngine:
             for iid, df in candles_map.items():
                 row_idx = ts_index[iid].get(ts)
                 if row_idx is None or row_idx == 0:
-                    window_map[iid] = df.iloc[:0]   # empty
+                    window_map[iid] = df.iloc[:0]  # empty
                 else:
                     window_map[iid] = df.iloc[:row_idx]
 
@@ -142,15 +137,11 @@ class MultiAssetBacktestEngine:
             # Apply all signals atomically
             for instrument_id, signal in output.signals.items():
                 if instrument_id not in candles_map:
-                    log.warning(
-                        "Signal for unknown instrument '%s' — skipping", instrument_id
-                    )
+                    log.warning("Signal for unknown instrument '%s' — skipping", instrument_id)
                     continue
                 price = self._get_price_at(candles_map[instrument_id], ts)
                 if price is None:
-                    log.warning(
-                        "No price for '%s' at %s — signal skipped", instrument_id, ts
-                    )
+                    log.warning("No price for '%s' at %s — signal skipped", instrument_id, ts)
                     continue
                 portfolio = self.portfolios[instrument_id]
                 self._apply_signal(portfolio, instrument_id, signal, ts, price)
@@ -162,9 +153,7 @@ class MultiAssetBacktestEngine:
                 last = df.iloc[-1]
                 last_ts: datetime = last[self.ts_column]
                 last_price = float(last["close"])
-                log.debug(
-                    "Force-closing open position for '%s' at end of data", iid
-                )
+                log.debug("Force-closing open position for '%s' at end of data", iid)
                 pos = portfolio._open_position
                 if pos is not None and pos.direction == SignalDirection.BUY:
                     portfolio.close_long(last_ts, last_price, signal=None)
@@ -176,9 +165,7 @@ class MultiAssetBacktestEngine:
             for iid, p in self.portfolios.items()
         }
 
-    def _get_price_at(
-        self, df: pd.DataFrame, ts: datetime
-    ) -> float | None:
+    def _get_price_at(self, df: pd.DataFrame, ts: datetime) -> float | None:
         """Return the close price of ``df`` at timestamp ``ts``.
 
         :param df: Normalised OHLCV DataFrame for a single instrument.
@@ -248,9 +235,7 @@ class MultiAssetBacktestEngine:
                         instrument_id,
                     )
             else:
-                log.debug(
-                    "SELL ignored for '%s': short already open", instrument_id
-                )
+                log.debug("SELL ignored for '%s': short already open", instrument_id)
 
         elif direction == SignalDirection.CLOSE:
             if not portfolio.is_flat():

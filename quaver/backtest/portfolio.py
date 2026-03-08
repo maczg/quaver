@@ -36,7 +36,7 @@ class OpenPosition:
     entry_ts: datetime
     entry_price: float
     quantity: float
-    direction: SignalDirection          # BUY (long) or SELL (short)
+    direction: SignalDirection  # BUY (long) or SELL (short)
     entry_signal: SignalOutput
 
 
@@ -79,8 +79,8 @@ class TradeRecord:
     entry_price: float
     exit_price: float
     quantity: float
-    direction: SignalDirection          # opening direction: BUY=long, SELL=short
-    pnl: float                          # see formula below
+    direction: SignalDirection  # opening direction: BUY=long, SELL=short
+    pnl: float  # see formula below
     entry_signal: SignalOutput
     exit_signal: SignalOutput | None
 
@@ -282,7 +282,7 @@ class Portfolio:
                 self._open_position.instrument_id if self._open_position else "?",
             )
             return
-        self._cash += price * self.quantity_per_trade   # receive short proceeds
+        self._cash += price * self.quantity_per_trade  # receive short proceeds
         self._open_position = OpenPosition(
             instrument_id=instrument_id,
             entry_ts=ts,
@@ -316,7 +316,7 @@ class Portfolio:
         if self._open_position is None:
             raise RuntimeError("close_short called with no open position")
         pos = self._open_position
-        self._cash -= price * pos.quantity   # buy back to cover
+        self._cash -= price * pos.quantity  # buy back to cover
         pnl = (pos.entry_price - price) * pos.quantity
         record = TradeRecord(
             instrument_id=pos.instrument_id,

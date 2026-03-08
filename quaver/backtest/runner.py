@@ -152,8 +152,7 @@ def run_multi_asset_backtest(
 
     if not issubclass(strategy_cls, MultiAssetStrategy):
         raise TypeError(
-            f"Engine '{engine_name}' is a single-asset BaseStrategy. "
-            "Use run_backtest() instead."
+            f"Engine '{engine_name}' is a single-asset BaseStrategy. Use run_backtest() instead."
         )
 
     strategy: MultiAssetStrategy = strategy_cls(parameters=parameters)
@@ -163,15 +162,10 @@ def run_multi_asset_backtest(
     required_ids = strategy.get_required_instrument_ids()
     missing = set(required_ids) - set(candles_map)
     if missing:
-        raise ValueError(
-            f"Required instrument(s) missing from candles_map: {sorted(missing)}"
-        )
+        raise ValueError(f"Required instrument(s) missing from candles_map: {sorted(missing)}")
 
     # Normalise all DataFrames
-    clean_map = {
-        iid: normalise_candles(df, ts_col=ts_column)
-        for iid, df in candles_map.items()
-    }
+    clean_map = {iid: normalise_candles(df, ts_col=ts_column) for iid, df in candles_map.items()}
 
     # Validate minimum candle counts
     required_count = strategy.get_required_candle_count()

@@ -43,8 +43,16 @@ def make_candles_df(n=100, start_price=100.0):
     ts = datetime(2020, 1, 1)
     price = start_price
     for _ in range(n):
-        rows.append({"ts": ts, "open": price, "high": price+1,
-                     "low": price-1, "close": price, "volume": 1000.0})
+        rows.append(
+            {
+                "ts": ts,
+                "open": price,
+                "high": price + 1,
+                "low": price - 1,
+                "close": price,
+                "volume": 1000.0,
+            }
+        )
         price += 0.5
         ts += timedelta(days=1)
     return pd.DataFrame(rows)
@@ -90,7 +98,7 @@ def test_empty_candles_zero_trades():
     strategy = StubStrategy(buy_bar=5, sell_bar=8)
     portfolio = Portfolio(initial_capital=10_000)
     engine = BacktestEngine(strategy, portfolio, "TEST")
-    df = normalise_candles(make_candles_df(5))   # less than required (10)
+    df = normalise_candles(make_candles_df(5))  # less than required (10)
     result = engine.run(df)
     assert result.total_trades == 0
 

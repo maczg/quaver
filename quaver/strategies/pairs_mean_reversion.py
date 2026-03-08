@@ -116,9 +116,7 @@ class PairsMeanReversionStrategy(MultiAssetStrategy):
         entry_z = self.parameters.get("entry_z", _DEFAULTS["entry_z"])
         exit_z = self.parameters.get("exit_z", _DEFAULTS["exit_z"])
         if exit_z >= entry_z:
-            raise ValueError(
-                f"exit_z ({exit_z}) must be less than entry_z ({entry_z})"
-            )
+            raise ValueError(f"exit_z ({exit_z}) must be less than entry_z ({entry_z})")
 
     def get_required_instrument_ids(self) -> list[str]:
         """Return the two instrument identifiers required by this strategy.

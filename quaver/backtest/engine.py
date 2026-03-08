@@ -94,7 +94,7 @@ class BacktestEngine:
         required = self.strategy.get_required_candle_count()
         n = len(candles)
         for i in range(required, n):
-            window = candles.iloc[:i]               # excludes bar i
+            window = candles.iloc[:i]  # excludes bar i
             current = candles.iloc[i]
             as_of: datetime = current[self.ts_column]
             price = float(current["close"])
@@ -121,9 +121,7 @@ class BacktestEngine:
             else:
                 self.portfolio.close_short(last_ts, last_price, signal=None)
 
-        return BacktestResult.from_portfolio(
-            self.portfolio, candles, self.instrument_id
-        )
+        return BacktestResult.from_portfolio(self.portfolio, candles, self.instrument_id)
 
     def _apply_signal(
         self,
@@ -171,9 +169,7 @@ class BacktestEngine:
                 if self.allow_shorting:
                     self.portfolio.open_short(self.instrument_id, as_of, price, signal)
                 else:
-                    log.debug(
-                        "SELL signal ignored: flat portfolio and allow_shorting=False"
-                    )
+                    log.debug("SELL signal ignored: flat portfolio and allow_shorting=False")
             else:
                 # Already short — ignore
                 log.debug("SELL signal ignored: short position already open")

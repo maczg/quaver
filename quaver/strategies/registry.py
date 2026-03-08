@@ -117,9 +117,7 @@ class StrategyRegistry:
             return cls._engines[engine_name]
         except KeyError:
             available = ", ".join(sorted(cls._engines)) or "(none)"
-            raise EngineNotFoundError(
-                f"Engine '{engine_name}' not found. Available: {available}"
-            )
+            raise EngineNotFoundError(f"Engine '{engine_name}' not found. Available: {available}")
 
     @classmethod
     def list_engines(cls) -> list[str]:
@@ -157,6 +155,7 @@ class StrategyRegistry:
             registry.
         """
         from quaver.strategies.base import MultiAssetStrategy
+
         strategy_cls = cls.get(engine_name)
         if issubclass(strategy_cls, MultiAssetStrategy):
             return "multi"

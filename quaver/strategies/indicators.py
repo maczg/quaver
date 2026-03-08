@@ -35,7 +35,7 @@ def sma(values: NDArray[np.float64], period: int) -> NDArray[np.float64]:
         return out
     kernel = np.ones(period) / period
     conv = np.convolve(values, kernel, mode="valid")
-    out[period - 1:] = conv
+    out[period - 1 :] = conv
     return out
 
 
@@ -102,7 +102,7 @@ def wilder_smooth(values: NDArray[np.float64], period: int) -> NDArray[np.float6
     out = np.full(n, np.nan)
     if period < 1 or n < period + 1:
         return out
-    first_valid = 1          # index 0 is NaN for TR/DM series
+    first_valid = 1  # index 0 is NaN for TR/DM series
     end_seed = first_valid + period
     if end_seed > n:
         return out
@@ -178,11 +178,7 @@ def adx(
     dx = np.full(n, np.nan)
     di_sum = plus_di + minus_di
     di_valid = ~np.isnan(di_sum) & (di_sum != 0)
-    dx[di_valid] = (
-        100.0
-        * np.abs(plus_di[di_valid] - minus_di[di_valid])
-        / di_sum[di_valid]
-    )
+    dx[di_valid] = 100.0 * np.abs(plus_di[di_valid] - minus_di[di_valid]) / di_sum[di_valid]
 
     adx_arr = np.full(n, np.nan)
     dx_valid_indices = np.where(~np.isnan(dx))[0]
@@ -194,7 +190,7 @@ def adx(
     if adx_start >= n:
         return adx_arr, plus_di, minus_di
 
-    adx_arr[adx_start] = np.mean(dx[first_dx: first_dx + period])
+    adx_arr[adx_start] = np.mean(dx[first_dx : first_dx + period])
     for i in range(adx_start + 1, n):
         if np.isnan(dx[i]):
             break
@@ -244,7 +240,7 @@ def bollinger_bands(
     middle = sma(close, period)
     std = np.full(n, np.nan)
     for i in range(period - 1, n):
-        std[i] = np.std(close[i - period + 1: i + 1], ddof=0)
+        std[i] = np.std(close[i - period + 1 : i + 1], ddof=0)
 
     upper = middle + num_std * std
     lower = middle - num_std * std
@@ -277,9 +273,7 @@ def bollinger_band_width(
     """
     with np.errstate(divide="ignore", invalid="ignore"):
         bbw = np.where(middle != 0, (upper - lower) / middle, np.nan)
-    bbw = np.where(
-        np.isnan(upper) | np.isnan(middle) | np.isnan(lower), np.nan, bbw
-    )
+    bbw = np.where(np.isnan(upper) | np.isnan(middle) | np.isnan(lower), np.nan, bbw)
     return bbw
 
 
@@ -311,7 +305,7 @@ def rolling_percentile(
     if window < 1 or n < window:
         return out
     for i in range(window - 1, n):
-        win = values[i - window + 1: i + 1]
+        win = values[i - window + 1 : i + 1]
         valid = win[~np.isnan(win)]
         if len(valid) > 0:
             out[i] = np.percentile(valid, percentile)

@@ -51,9 +51,7 @@ class SignalOutput:
 
     def __post_init__(self) -> None:
         if not 0.0 <= self.confidence <= 1.0:
-            raise ValueError(
-                f"confidence must be between 0.0 and 1.0, got {self.confidence}"
-            )
+            raise ValueError(f"confidence must be between 0.0 and 1.0, got {self.confidence}")
 
 
 @dataclass
@@ -263,6 +261,7 @@ class BaseStrategy(ABC):
 
 # ── Multi-asset extension ────────────────────────────────────────────────────
 
+
 @dataclass(frozen=True)
 class MultiAssetStrategyOutput:
     """Signals produced by a multi-asset ``compute()`` call.
@@ -280,7 +279,7 @@ class MultiAssetStrategyOutput:
     :type metadata: dict[str, Any] or None
     """
 
-    signals: dict[str, SignalOutput]       # instrument_id -> signal
+    signals: dict[str, SignalOutput]  # instrument_id -> signal
     metadata: dict[str, Any] | None = None  # strategy-level metadata
 
 

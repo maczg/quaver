@@ -65,6 +65,7 @@ def test_sharpe_ratio_zero_with_one_trade():
 
 def test_sharpe_ratio_nonzero():
     import numpy as np
+
     pnls = [10.0, -5.0, 8.0, -3.0, 12.0]
     r = make_result(pnls)
     arr = [10.0, -5.0, 8.0, -3.0, 12.0]
@@ -86,10 +87,18 @@ def test_summary_keys():
     r = make_result([10.0, -5.0])
     s = r.summary()
     required_keys = {
-        "instrument_id", "initial_capital", "final_cash",
-        "total_return_pct", "total_trades", "winning_trades",
-        "losing_trades", "win_rate_pct", "avg_pnl",
-        "profit_factor", "sharpe_ratio", "max_drawdown_pct",
+        "instrument_id",
+        "initial_capital",
+        "final_cash",
+        "total_return_pct",
+        "total_trades",
+        "winning_trades",
+        "losing_trades",
+        "win_rate_pct",
+        "avg_pnl",
+        "profit_factor",
+        "sharpe_ratio",
+        "max_drawdown_pct",
     }
     assert required_keys.issubset(s.keys())
 

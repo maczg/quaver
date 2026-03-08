@@ -40,10 +40,7 @@ def normalise_candles(df: pd.DataFrame, ts_col: str = "ts") -> pd.DataFrame:
     required = _REQUIRED_COLUMNS | {ts_col}
     missing = required - set(df.columns)
     if missing:
-        raise ValueError(
-            f"Missing required columns: {sorted(missing)}. "
-            f"Got: {sorted(df.columns)}"
-        )
+        raise ValueError(f"Missing required columns: {sorted(missing)}. Got: {sorted(df.columns)}")
 
     # Cast OHLCV
     for col in _REQUIRED_COLUMNS:
@@ -54,11 +51,7 @@ def normalise_candles(df: pd.DataFrame, ts_col: str = "ts") -> pd.DataFrame:
     df[ts_col] = ts.dt.tz_localize(None)  # store as tz-naive UTC
 
     # Sort, deduplicate, reset
-    df = (
-        df.sort_values(ts_col)
-        .drop_duplicates(subset=[ts_col], keep="last")
-        .reset_index(drop=True)
-    )
+    df = df.sort_values(ts_col).drop_duplicates(subset=[ts_col], keep="last").reset_index(drop=True)
 
     return df
 
@@ -80,6 +73,4 @@ def validate_candles(df: pd.DataFrame, required: int, label: str = "") -> None:
     """
     tag = f" for '{label}'" if label else ""
     if len(df) < required:
-        raise ValueError(
-            f"Insufficient candles{tag}: need {required}, got {len(df)}."
-        )
+        raise ValueError(f"Insufficient candles{tag}: need {required}, got {len(df)}.")
