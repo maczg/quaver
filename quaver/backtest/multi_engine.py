@@ -110,7 +110,7 @@ class MultiAssetBacktestEngine:
                 )
 
         # Build fast lookup: instrument_id -> {ts -> row index}
-        ts_index: dict[str, dict] = {
+        ts_index: dict[str, dict[object, int]] = {
             iid: {ts: idx for idx, ts in enumerate(df[self.ts_column].tolist())}
             for iid, df in candles_map.items()
         }

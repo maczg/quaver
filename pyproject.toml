@@ -40,6 +40,7 @@ dev = [
     "pytest-cov",
     "ruff>=0.4",
     "mypy>=1.10",
+    "pandas-stubs",
 ]
 docs = [
     "sphinx>=9.1.0",

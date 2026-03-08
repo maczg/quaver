@@ -225,7 +225,7 @@ class BacktestResult:
             return float("inf")
         return round(gross_profit / gross_loss, 4)
 
-    def summary(self) -> dict:
+    def summary(self) -> dict[str, object]:
         """Return all key metrics as a flat dictionary with rounded values.
 
         The dictionary contains the following keys:

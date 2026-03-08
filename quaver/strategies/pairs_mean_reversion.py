@@ -140,7 +140,7 @@ class PairsMeanReversionStrategy(MultiAssetStrategy):
             will produce a signal.
         :rtype: int
         """
-        return self.parameters.get("spread_window", _DEFAULTS["spread_window"]) + 10
+        return int(self.parameters.get("spread_window", _DEFAULTS["spread_window"])) + 10
 
     def compute(
         self,
@@ -184,8 +184,8 @@ class PairsMeanReversionStrategy(MultiAssetStrategy):
         if df_a is None or df_b is None or len(df_a) < window or len(df_b) < window:
             return None
 
-        closes_a = df_a["close"].astype(float).values
-        closes_b = df_b["close"].astype(float).values
+        closes_a = df_a["close"].to_numpy(dtype=float)
+        closes_b = df_b["close"].to_numpy(dtype=float)
 
         # Align on the shorter series tail
         n = min(len(closes_a), len(closes_b))

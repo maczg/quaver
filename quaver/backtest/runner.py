@@ -19,7 +19,7 @@ log = logging.getLogger(__name__)
 
 def run_backtest(
     engine_name: str,
-    parameters: dict,
+    parameters: dict[str, object],
     candles: pd.DataFrame,
     instrument_id: str,
     initial_capital: float = 10_000.0,
@@ -97,7 +97,7 @@ def run_backtest(
 
 def run_multi_asset_backtest(
     engine_name: str,
-    parameters: dict,
+    parameters: dict[str, object],
     candles_map: dict[str, pd.DataFrame],
     initial_capital: float = 10_000.0,
     quantity_per_trade: float = 1.0,

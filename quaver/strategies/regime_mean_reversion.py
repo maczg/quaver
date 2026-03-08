@@ -292,7 +292,7 @@ class RegimeMeanReversionStrategy(BaseStrategy):
         :returns: The configured *candle_count* value.
         :rtype: int
         """
-        return self._p("candle_count")
+        return int(self._p("candle_count"))
 
     def compute(
         self,
@@ -332,10 +332,10 @@ class RegimeMeanReversionStrategy(BaseStrategy):
             return None
 
         # -- Extract OHLCV arrays --
-        close = candles["close"].astype(float).values
-        high = candles["high"].astype(float).values
-        low = candles["low"].astype(float).values
-        vol = candles["volume"].astype(float).values
+        close = candles["close"].to_numpy(dtype=float)
+        high = candles["high"].to_numpy(dtype=float)
+        low = candles["low"].to_numpy(dtype=float)
+        vol = candles["volume"].to_numpy(dtype=float)
 
         # -- Compute indicators --
         adx_arr, plus_di, minus_di = compute_adx(high, low, close, self._p("adx_period"))

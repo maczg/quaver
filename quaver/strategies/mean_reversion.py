@@ -96,7 +96,7 @@ class MeanReversionStrategy(BaseStrategy):
             a signal.
         :rtype: int
         """
-        return self.parameters.get("slow_period", _DEFAULTS["slow_period"]) + 10
+        return int(self.parameters.get("slow_period", _DEFAULTS["slow_period"])) + 10
 
     def compute(self, candles: pd.DataFrame, as_of: datetime) -> SignalOutput | None:
         """Run mean-reversion logic on a single listing's candles.

@@ -203,11 +203,11 @@ class VSAStoppingVolumeStrategy(BaseStrategy):
         trend_n: int = self.parameters["trend_sma"]
 
         # Extract OHLCV arrays
-        opens = candles["open"].astype(float).values
-        highs = candles["high"].astype(float).values
-        lows = candles["low"].astype(float).values
-        closes = candles["close"].astype(float).values
-        vols = candles["volume"].astype(float).values
+        opens = candles["open"].to_numpy(dtype=float)
+        highs = candles["high"].to_numpy(dtype=float)
+        lows = candles["low"].to_numpy(dtype=float)
+        closes = candles["close"].to_numpy(dtype=float)
+        vols = candles["volume"].to_numpy(dtype=float)
 
         # Spread series and relative indicators
         spreads = highs - lows

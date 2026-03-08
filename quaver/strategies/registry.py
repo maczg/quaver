@@ -19,10 +19,12 @@ registrations automatically.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Callable, Literal, TypeVar
 
 if TYPE_CHECKING:
     from quaver.strategies.base import BaseStrategy, MultiAssetStrategy
+
+_T = TypeVar("_T", bound=type)
 
 
 class DuplicateEngineError(Exception):
@@ -66,7 +68,7 @@ class StrategyRegistry:
     _engines: dict[str, type[BaseStrategy] | type[MultiAssetStrategy]] = {}
 
     @classmethod
-    def register(cls, engine_name: str):
+    def register(cls, engine_name: str) -> Callable[[_T], _T]:
         """Decorator factory that registers a strategy engine class.
 
         Apply to a :class:`~quaver.strategies.base.BaseStrategy` or
@@ -89,7 +91,7 @@ class StrategyRegistry:
             the registry.
         """
 
-        def decorator(strategy_cls):
+        def decorator(strategy_cls: _T) -> _T:
             if engine_name in cls._engines:
                 raise DuplicateEngineError(
                     f"Engine '{engine_name}' is already registered "
@@ -101,7 +103,7 @@ class StrategyRegistry:
         return decorator
 
     @classmethod
-    def get(cls, engine_name: str):
+    def get(cls, engine_name: str) -> type[BaseStrategy] | type[MultiAssetStrategy]:
         """Look up a registered engine class by name.
 
         :param engine_name: The engine name used during registration.
@@ -129,7 +131,7 @@ class StrategyRegistry:
         return sorted(cls._engines)
 
     @classmethod
-    def all(cls) -> dict:
+    def all(cls) -> dict[str, type[BaseStrategy] | type[MultiAssetStrategy]]:
         """Return the full engine registry as a shallow copy.
 
         The returned ``dict`` maps engine name strings to their strategy
