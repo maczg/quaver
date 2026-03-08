@@ -106,7 +106,8 @@ def test_run_multi_asset_end_to_end():
     pa, pb = 100.0, 100.0
     for _ in range(200):
         c = rng.normal(0, 0.5)
-        pa += c; pb += c + 0.2
+        pa += c
+        pb += c + 0.2
         for rows, p in [(rows_a, pa), (rows_b, pb)]:
             rows.append({"ts": ts, "open": p, "high": p+0.5,
                          "low": p-0.5, "close": p, "volume": 1000.0})

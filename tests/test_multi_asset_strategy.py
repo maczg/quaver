@@ -1,6 +1,5 @@
 """Unit tests for MultiAssetStrategy and MultiAssetBacktestEngine."""
 
-import pytest
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
@@ -10,7 +9,6 @@ from quaver.strategies.registry import StrategyRegistry
 from quaver.backtest.multi_engine import MultiAssetBacktestEngine
 from quaver.backtest.portfolio import Portfolio
 from quaver.backtest.data import normalise_candles
-from quaver.types import SignalDirection
 
 
 def make_pair_candles(n=200, spread_offset=0.0, seed=42):

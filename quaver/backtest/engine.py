@@ -93,8 +93,6 @@ class BacktestEngine:
 
         required = self.strategy.get_required_candle_count()
         n = len(candles)
-        last_signal: SignalOutput | None = None
-
         for i in range(required, n):
             window = candles.iloc[:i]               # excludes bar i
             current = candles.iloc[i]
@@ -105,7 +103,6 @@ class BacktestEngine:
             if signal is None:
                 continue
 
-            last_signal = signal
             self._apply_signal(signal, as_of, price)
 
         # Force-close any remaining open position at the final bar

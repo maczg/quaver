@@ -20,9 +20,9 @@ def make_candles(
         o = base
         c = base + change
         h = max(o, c) + abs(rng.normal(0, 0.2))
-        l = min(o, c) - abs(rng.normal(0, 0.2))
+        low = min(o, c) - abs(rng.normal(0, 0.2))
         v = abs(rng.normal(1_000_000, 100_000))
-        rows.append({"ts": ts, "open": o, "high": h, "low": l, "close": c, "volume": v})
+        rows.append({"ts": ts, "open": o, "high": h, "low": low, "close": c, "volume": v})
         base = c
         ts += timedelta(days=1)
     return pd.DataFrame(rows)
