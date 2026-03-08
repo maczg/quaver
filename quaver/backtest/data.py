@@ -9,27 +9,30 @@ _REQUIRED_COLUMNS = {"open", "high", "low", "close", "volume"}
 
 
 def normalise_candles(df: pd.DataFrame, ts_col: str = "ts") -> pd.DataFrame:
-    """
-    Validate, cast, sort, and deduplicate a candles DataFrame.
+    """Validate, cast, sort, and deduplicate a candles DataFrame.
 
-    Steps:
-        1. Raise ValueError if any required column is missing
-           (required: ts_col, open, high, low, close, volume).
-        2. Cast OHLCV columns to float64.
-        3. Parse ts column to datetime64[ns, UTC] — strips timezone if present,
-           then re-localises as UTC to ensure consistent merging across instruments.
-        4. Sort ascending by ts, drop duplicate ts rows (keep last), reset index.
-        5. Return a copy (input is not mutated).
+    Processing steps applied in order:
 
-    Args:
-        df: Raw OHLCV DataFrame.
-        ts_col: Name of the timestamp column (default "ts").
+    1. Raise :exc:`ValueError` if any required column is missing.
+       Required columns: ``ts_col``, ``open``, ``high``, ``low``, ``close``,
+       ``volume``.
+    2. Cast all OHLCV columns to ``float64``.
+    3. Parse the timestamp column to ``datetime64[ns, UTC]`` -- strips any
+       existing timezone information and then re-localises as UTC to ensure
+       consistent merging across instruments.
+    4. Sort ascending by the timestamp column, drop duplicate timestamp rows
+       (keeping the last occurrence), and reset the index.
+    5. Return a copy; the input DataFrame is **never** mutated.
 
-    Returns:
-        Cleaned DataFrame with a monotonic, tz-naive UTC timestamp column.
-
-    Raises:
-        ValueError: if required columns are missing.
+    :param df: Raw OHLCV DataFrame to be normalised.
+    :type df: pandas.DataFrame
+    :param ts_col: Name of the timestamp column.  Defaults to ``"ts"``.
+    :type ts_col: str
+    :returns: Cleaned DataFrame with a monotonic, tz-naive UTC timestamp
+        column and all OHLCV columns cast to ``float64``.
+    :rtype: pandas.DataFrame
+    :raises ValueError: If one or more required columns are absent from
+        ``df``.
     """
     df = df.copy()
 
@@ -61,16 +64,19 @@ def normalise_candles(df: pd.DataFrame, ts_col: str = "ts") -> pd.DataFrame:
 
 
 def validate_candles(df: pd.DataFrame, required: int, label: str = "") -> None:
-    """
-    Raise ValueError if df has fewer rows than required.
+    """Raise :exc:`ValueError` if ``df`` has fewer rows than ``required``.
 
-    Args:
-        df: Normalised candles DataFrame.
-        required: Minimum number of rows needed.
-        label: Optional instrument label for error messages.
-
-    Raises:
-        ValueError: if len(df) < required.
+    :param df: Normalised candles DataFrame (output of
+        :func:`normalise_candles`).
+    :type df: pandas.DataFrame
+    :param required: Minimum number of rows needed by the strategy.
+    :type required: int
+    :param label: Optional instrument label included in the error message for
+        easier diagnosis.  Defaults to an empty string.
+    :type label: str
+    :returns: None
+    :rtype: None
+    :raises ValueError: If ``len(df) < required``.
     """
     tag = f" for '{label}'" if label else ""
     if len(df) < required:

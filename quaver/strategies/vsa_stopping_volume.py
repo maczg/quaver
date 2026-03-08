@@ -1,6 +1,7 @@
 """VSA Stopping Volume strategy engine.
 
 Implements a Volume Spread Analysis pattern:
+
 - Quantitative features from OHLCV (spread, close_position, vol_rel, spread_rel)
 - BUY (Stopping Volume) pattern in a local downtrend
 - Optional symmetric SELL (distribution on highs)
@@ -49,7 +50,65 @@ _DEFAULTS: dict[str, Any] = {
 
 @StrategyRegistry.register("vsa_stopping_volume")
 class VSAStoppingVolumeStrategy(BaseStrategy):
-    """VSA-style pattern engine using stopping-volume reversal heuristic."""
+    """VSA-style pattern engine using stopping-volume reversal heuristic.
+
+    Computes four quantitative features from OHLCV data — candle spread,
+    close position within the bar, relative volume, and relative spread —
+    and applies a stopping-volume pattern to identify potential reversals.
+
+    **Signal logic**
+
+    * **BUY (Stopping Volume)** — fires when the market is in a local
+      downtrend (``close < trend_sma``), the current candle is bearish,
+      relative volume exceeds *stopping_vol_rel*, the spread is narrow
+      (below *spread_small*), and the close is not near the lows of the
+      bar (``close_position > buy_close_pos_min``).  This combination
+      signals absorbed selling pressure.
+    * **SELL (Distribution)** — symmetric mirror of the BUY pattern,
+      active only when *enable_sell* is ``True``.  Fires in an uptrend
+      with a bullish bar, high volume, narrow spread, and close near the
+      bottom of the range (``close_position < sell_close_pos_max``).
+
+    Confidence is derived from excess relative volume above
+    *stopping_vol_rel*, with a bonus ``+0.1`` when the bar is also
+    classified as an ``absorption_trap`` (high volume, narrow spread).
+
+    :param sma_window: Lookback period for volume and spread normalisation
+        SMAs. Defaults to ``20``.
+    :type sma_window: int
+    :param trend_sma: Lookback period for the closing-price SMA used to
+        determine local trend direction. Defaults to ``20``.
+    :type trend_sma: int
+    :param vol_high: Relative-volume threshold above which volume is
+        classified as "high" in the matrix state. Defaults to ``1.5``.
+    :type vol_high: float
+    :param vol_low: Relative-volume threshold below which volume is
+        classified as "low" in the matrix state. Defaults to ``0.7``.
+    :type vol_low: float
+    :param spread_big: Relative-spread threshold above which a candle is
+        considered wide. Defaults to ``1.3``.
+    :type spread_big: float
+    :param spread_small: Relative-spread threshold below which a candle is
+        considered narrow (absorption candidate). Defaults to ``0.7``.
+    :type spread_small: float
+    :param stopping_vol_rel: Minimum relative volume for a stopping-volume
+        event on either side. Defaults to ``2.0``.
+    :type stopping_vol_rel: float
+    :param buy_close_pos_min: Minimum close position (``[0, 1]``) for the
+        BUY pattern to fire.  Values near ``1.0`` mean the close must be
+        near the top of the bar. Defaults to ``0.4``.
+    :type buy_close_pos_min: float
+    :param sell_close_pos_max: Maximum close position (``[0, 1]``) for the
+        SELL pattern to fire.  Values near ``0.0`` mean the close must be
+        near the bottom of the bar. Defaults to ``0.6``.
+    :type sell_close_pos_max: float
+    :param enable_buy: Whether to evaluate the BUY stopping-volume pattern.
+        Defaults to ``True``.
+    :type enable_buy: bool
+    :param enable_sell: Whether to evaluate the SELL symmetric pattern.
+        Defaults to ``True``.
+    :type enable_sell: bool
+    """
 
     display_name = "VSA Stopping Volume"
     description = (
@@ -59,6 +118,15 @@ class VSAStoppingVolumeStrategy(BaseStrategy):
     )
 
     def validate_parameters(self) -> None:
+        """Validate all strategy parameters.
+
+        Checks integer parameters (*sma_window*, *trend_sma*) for positive
+        ``int`` type, positive-number parameters for ``> 0`` numeric type,
+        unit-interval parameters (*buy_close_pos_min*, *sell_close_pos_max*)
+        for membership in ``[0, 1]``, and boolean flags for ``bool`` type.
+
+        :raises ValueError: If any parameter fails its type or range check.
+        """
         p = self.parameters
 
         def _pos_int(name: str) -> None:
@@ -92,6 +160,15 @@ class VSAStoppingVolumeStrategy(BaseStrategy):
             raise ValueError("enable_sell must be boolean")
 
     def get_required_candle_count(self) -> int:
+        """Return the minimum number of historical candles required.
+
+        The value is ``max(sma_window, trend_sma) + 5`` to ensure both SMAs
+        are warm with a small safety buffer.
+
+        :returns: Minimum candle count needed before ``compute()`` will produce
+            a signal.
+        :rtype: int
+        """
         n = int(self.parameters.get("sma_window", _DEFAULTS["sma_window"]))
         t = int(self.parameters.get("trend_sma", _DEFAULTS["trend_sma"]))
         return max(n, t) + 5
@@ -101,6 +178,27 @@ class VSAStoppingVolumeStrategy(BaseStrategy):
             candles: pd.DataFrame,
             as_of: datetime,
     ) -> SignalOutput | None:
+        """Run VSA stopping-volume logic on a single listing's candles.
+
+        Computes spread, close position, relative volume, and relative spread
+        for the entire series, then evaluates the BUY and SELL pattern
+        conditions on the latest bar only.  Returns ``None`` when the candle
+        DataFrame is empty, required indicators are ``NaN``, or neither
+        pattern fires.
+
+        :param candles: OHLCV DataFrame ordered by timestamp ascending.
+            Must contain ``open``, ``high``, ``low``, ``close``, and
+            ``volume`` columns.  The current bar being evaluated is **not**
+            included.
+        :type candles: pandas.DataFrame
+        :param as_of: Point-in-time timestamp of the current bar being
+            evaluated.  Stored verbatim in the signal metadata.
+        :type as_of: datetime.datetime
+        :returns: A :class:`~quaver.strategies.base.SignalOutput` when the
+            stopping-volume BUY or symmetric SELL pattern fires on the latest
+            bar; ``None`` otherwise.
+        :rtype: SignalOutput or None
+        """
         if candles.empty:
             return None
 
@@ -227,6 +325,14 @@ class VSAStoppingVolumeStrategy(BaseStrategy):
 
     @classmethod
     def get_parameter_schema(cls) -> dict[str, Any]:
+        """Return a JSON Schema object describing all strategy parameters.
+
+        :returns: A ``dict`` conforming to JSON Schema ``"type": "object"``
+            with a ``"properties"`` key mapping each parameter name to its
+            type, constraints, and human-readable description, and a
+            ``"required"`` key listing all parameter names.
+        :rtype: dict[str, Any]
+        """
         return {
             "type": "object",
             "properties": {
@@ -256,4 +362,10 @@ class VSAStoppingVolumeStrategy(BaseStrategy):
 
     @classmethod
     def get_default_parameters(cls) -> dict[str, Any]:
+        """Return a copy of the default parameter dictionary.
+
+        :returns: Mapping of every parameter name to its default value as
+            defined in the module-level ``_DEFAULTS`` constant.
+        :rtype: dict[str, Any]
+        """
         return dict(_DEFAULTS)

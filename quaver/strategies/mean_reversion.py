@@ -1,4 +1,9 @@
-"""Mean reversion strategy engine — reference implementation."""
+"""Mean reversion strategy engine — reference implementation.
+
+This module provides :class:`MeanReversionStrategy`, a dual moving-average
+mean-reversion strategy that emits BUY/SELL signals based on the relative
+divergence between a fast and a slow simple moving average.
+"""
 
 from __future__ import annotations
 
@@ -23,22 +28,33 @@ _DEFAULTS: dict[str, Any] = {
 
 @StrategyRegistry.register("mean_reversion")
 class MeanReversionStrategy(BaseStrategy):
-    """
-    Dual moving-average mean reversion strategy.
+    """Dual moving-average mean reversion strategy.
 
-    Parameters:
-        fast_period (int): Short MA window (default 20).
-        slow_period (int): Long MA window (default 50).
-        threshold (float): Divergence threshold to trigger a signal (default 0.02 = 2%).
+    Computes a fast SMA and a slow SMA over closing prices and emits a signal
+    whenever their relative divergence exceeds *threshold*.
 
-    Signal logic:
-        BUY  when fast MA < slow MA by more than threshold (oversold).
-        SELL when fast MA > slow MA by more than threshold (overbought).
-        Confidence scales with divergence magnitude, capped at 1.0.
+    **Signal logic**
 
-    NOTE: SELL signals mean "overbought — expect mean reversion downward".
-    Whether the backtest engine opens a short or simply ignores SELL-from-flat
-    is controlled by the engine's `allow_shorting` flag (default False).
+    * **BUY** when ``fast_ma < slow_ma`` by more than *threshold* (oversold).
+    * **SELL** when ``fast_ma > slow_ma`` by more than *threshold* (overbought).
+    * Confidence scales with divergence magnitude, capped at ``1.0``.
+
+    .. note::
+
+       SELL signals mean "overbought — expect mean reversion downward".
+       Whether the backtest engine opens a short or simply ignores
+       SELL-from-flat is controlled by the engine's ``allow_shorting`` flag
+       (default ``False``).
+
+    :param fast_period: Short MA window. Must be a positive integer less than
+        *slow_period*. Defaults to ``20``.
+    :type fast_period: int
+    :param slow_period: Long MA window. Must be a positive integer greater than
+        *fast_period*. Defaults to ``50``.
+    :type slow_period: int
+    :param threshold: Relative divergence threshold to trigger a signal
+        (e.g. ``0.02`` = 2 %). Must be a positive number. Defaults to ``0.02``.
+    :type threshold: float
     """
 
     display_name = "Mean Reversion"
@@ -48,6 +64,15 @@ class MeanReversionStrategy(BaseStrategy):
     )
 
     def validate_parameters(self) -> None:
+        """Validate all strategy parameters.
+
+        Checks that *fast_period* and *slow_period* are positive integers,
+        that *fast_period* is strictly less than *slow_period*, and that
+        *threshold* is a positive number.
+
+        :raises ValueError: If any parameter fails its type or range check, or
+            if ``fast_period >= slow_period``.
+        """
         fast = self.parameters.get("fast_period")
         slow = self.parameters.get("slow_period")
         threshold = self.parameters.get("threshold")
@@ -64,9 +89,38 @@ class MeanReversionStrategy(BaseStrategy):
             raise ValueError(f"threshold must be a positive number, got {threshold!r}")
 
     def get_required_candle_count(self) -> int:
+        """Return the minimum number of historical candles required.
+
+        The value is ``slow_period + 10`` to allow the slow MA to be computed
+        with a small safety buffer.
+
+        :returns: Minimum candle count needed before ``compute()`` will produce
+            a signal.
+        :rtype: int
+        """
         return self.parameters.get("slow_period", _DEFAULTS["slow_period"]) + 10
 
     def compute(self, candles: pd.DataFrame, as_of: datetime) -> SignalOutput | None:
+        """Run mean-reversion logic on a single listing's candles.
+
+        Computes a fast SMA and a slow SMA from the closing prices in
+        *candles*, then emits a BUY or SELL signal when their relative
+        divergence exceeds the configured *threshold*.  Returns ``None`` when
+        there are insufficient bars, when the slow MA is zero, or when the
+        divergence is below the threshold.
+
+        :param candles: OHLCV DataFrame ordered by timestamp ascending.
+            Must contain at least a ``close`` column.  The current bar being
+            evaluated is **not** included.
+        :type candles: pandas.DataFrame
+        :param as_of: Point-in-time timestamp of the current bar being
+            evaluated.
+        :type as_of: datetime.datetime
+        :returns: A :class:`~quaver.strategies.base.SignalOutput` with
+            ``direction``, ``confidence``, ``notes``, and ``metadata`` when a
+            signal condition is met; ``None`` otherwise.
+        :rtype: SignalOutput or None
+        """
         fast_period: int = self.parameters["fast_period"]
         slow_period: int = self.parameters["slow_period"]
         threshold: float = self.parameters["threshold"]
@@ -109,4 +163,10 @@ class MeanReversionStrategy(BaseStrategy):
 
     @classmethod
     def get_default_parameters(cls) -> dict[str, Any]:
+        """Return a copy of the default parameter dictionary.
+
+        :returns: Mapping of parameter names to their default values:
+            ``fast_period=20``, ``slow_period=50``, ``threshold=0.02``.
+        :rtype: dict[str, Any]
+        """
         return dict(_DEFAULTS)

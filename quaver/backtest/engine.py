@@ -16,29 +16,49 @@ log = logging.getLogger(__name__)
 
 
 class BacktestEngine:
-    """
-    Replays a single instrument's candle history through a BaseStrategy.
+    """Replays a single instrument's candle history through a
+    :class:`~quaver.strategies.base.BaseStrategy`.
 
-    Design invariants:
-        - NO look-ahead bias: window passed to compute() = candles.iloc[:i],
-          which excludes the bar at index i (the "current" bar).
-        - Input DataFrame is never mutated.
-        - Exceptions from strategy.compute() are NOT caught — they propagate.
-        - HOLD signals are logged at DEBUG level and treated as no-ops.
-        - SELL signals:
-            * If a long position is open  → close_long.
-            * If flat AND allow_shorting  → open_short.
-            * If flat AND NOT allow_shorting → logged and skipped.
-        - portfolio.reset() is called at the start of each run() call so that
-          running the engine twice produces identical results.
+    **Design invariants**
 
-    Args:
-        strategy: Instantiated and validated BaseStrategy.
-        portfolio: Portfolio instance (will be reset on each run()).
-        instrument_id: Identifier used in TradeRecord and BacktestResult.
-        ts_column: Name of the timestamp column (default "ts").
-        allow_shorting: If True, SELL signals from a flat portfolio open a short.
-                        Default False (most mean-reversion strategies are long-only).
+    - **No look-ahead bias**: the window passed to
+      :meth:`~quaver.strategies.base.BaseStrategy.compute` is
+      ``candles.iloc[:i]``, which excludes the bar at index *i* (the
+      "current" bar).
+    - The input DataFrame is **never** mutated.
+    - Exceptions raised by
+      :meth:`~quaver.strategies.base.BaseStrategy.compute` are **not**
+      caught -- they propagate to the caller.
+    - ``HOLD`` signals are logged at ``DEBUG`` level and treated as no-ops.
+    - ``SELL`` signal routing:
+
+      - If a long position is open -> :meth:`~Portfolio.close_long`.
+      - If flat **and** ``allow_shorting`` is ``True`` ->
+        :meth:`~Portfolio.open_short`.
+      - If flat **and** ``allow_shorting`` is ``False`` -> logged and
+        skipped.
+
+    - :meth:`~Portfolio.reset` is called at the start of each
+      :meth:`run` invocation so that running the engine twice produces
+      identical results.
+
+    :param strategy: Instantiated and validated
+        :class:`~quaver.strategies.base.BaseStrategy`.
+    :type strategy: BaseStrategy
+    :param portfolio: :class:`~quaver.backtest.portfolio.Portfolio` instance
+        (will be reset automatically at the start of each :meth:`run` call).
+    :type portfolio: Portfolio
+    :param instrument_id: Identifier embedded in
+        :class:`~quaver.backtest.portfolio.TradeRecord` and
+        :class:`~quaver.backtest.result.BacktestResult` objects.
+    :type instrument_id: str
+    :param ts_column: Name of the timestamp column in the candles DataFrame.
+        Defaults to ``"ts"``.
+    :type ts_column: str
+    :param allow_shorting: When ``True``, ``SELL`` signals received while the
+        portfolio is flat will open a short position.  Defaults to ``False``
+        (suitable for most long-only mean-reversion strategies).
+    :type allow_shorting: bool
     """
 
     def __init__(
@@ -56,14 +76,18 @@ class BacktestEngine:
         self.allow_shorting = allow_shorting
 
     def run(self, candles: pd.DataFrame) -> BacktestResult:
-        """
-        Run the backtest over the full candles history.
+        """Run the backtest over the full candles history.
 
-        Args:
-            candles: Normalised OHLCV DataFrame (output of normalise_candles).
+        The portfolio is reset before iteration begins.  Any position that
+        remains open at the end of the data is force-closed at the final
+        bar's close price with ``signal=None``.
 
-        Returns:
-            BacktestResult summarising all trades and metrics.
+        :param candles: Normalised OHLCV DataFrame (output of
+            :func:`~quaver.backtest.data.normalise_candles`).
+        :type candles: pandas.DataFrame
+        :returns: :class:`~quaver.backtest.result.BacktestResult` summarising
+            all trades and computed performance metrics.
+        :rtype: BacktestResult
         """
         self.portfolio.reset()
 
@@ -110,7 +134,29 @@ class BacktestEngine:
         as_of: datetime,
         price: float,
     ) -> None:
-        """Translate a SignalOutput into portfolio operations."""
+        """Translate a :class:`~quaver.strategies.base.SignalOutput` into
+        portfolio operations.
+
+        Routing rules:
+
+        - ``BUY``: open a long position if the portfolio is flat; otherwise
+          log at ``DEBUG`` and ignore.
+        - ``SELL``: close an existing long, or (if flat and
+          ``allow_shorting``) open a short; otherwise log and ignore.
+        - ``CLOSE``: close whichever position is currently open (long or
+          short); no-op if flat.
+        - ``HOLD``: log at ``DEBUG`` level; no portfolio action taken.
+
+        :param signal: Signal emitted by the strategy for the current bar.
+        :type signal: SignalOutput
+        :param as_of: Timestamp of the current bar.
+        :type as_of: datetime
+        :param price: Close price of the current bar used as the execution
+            price.
+        :type price: float
+        :returns: None
+        :rtype: None
+        """
         direction = signal.direction
 
         if direction == SignalDirection.BUY:

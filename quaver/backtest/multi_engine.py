@@ -16,28 +16,44 @@ log = logging.getLogger(__name__)
 
 
 class MultiAssetBacktestEngine:
-    """
-    Replays multiple instruments' candle histories through a MultiAssetStrategy.
+    """Replays multiple instruments' candle histories through a
+    :class:`~quaver.strategies.base.MultiAssetStrategy`.
 
-    Alignment:
-        All instruments are aligned to a shared timestamp intersection.
-        If the intersection drops more than `timestamp_overlap_warn_threshold`
-        of any single instrument's timestamps, a WARNING is logged.
+    **Alignment**
 
-    Atomicity:
-        All signals emitted in a single MultiAssetStrategyOutput are applied
-        in the same iteration step, before moving to the next timestamp.
+    All instruments are aligned to the sorted intersection of their
+    timestamp sets.  If the intersection discards more than
+    ``timestamp_overlap_warn_threshold`` of any single instrument's
+    timestamps a ``WARNING`` is logged.
 
-    Position management:
-        Each instrument has its own Portfolio.
+    **Atomicity**
 
-    Args:
-        strategy: Instantiated and validated MultiAssetStrategy.
-        portfolios: Dict of instrument_id -> Portfolio (one per instrument).
-        ts_column: Timestamp column name (default "ts").
-        allow_shorting: If True, SELL signals from flat portfolios open shorts.
-        timestamp_overlap_warn_threshold: Warn if intersection drops > this
-            fraction of an instrument's timestamps. Default 0.05.
+    All signals emitted in a single
+    :class:`~quaver.strategies.base.MultiAssetStrategyOutput` are applied
+    within the same iteration step, before advancing to the next timestamp.
+
+    **Position management**
+
+    Each instrument has its own independent
+    :class:`~quaver.backtest.portfolio.Portfolio`.
+
+    :param strategy: Instantiated and validated
+        :class:`~quaver.strategies.base.MultiAssetStrategy`.
+    :type strategy: MultiAssetStrategy
+    :param portfolios: Mapping of ``instrument_id`` to
+        :class:`~quaver.backtest.portfolio.Portfolio`, one entry per
+        instrument.
+    :type portfolios: dict[str, Portfolio]
+    :param ts_column: Timestamp column name shared by all candle DataFrames.
+        Defaults to ``"ts"``.
+    :type ts_column: str
+    :param allow_shorting: When ``True``, ``SELL`` signals from flat
+        portfolios open short positions.  Defaults to ``False``.
+    :type allow_shorting: bool
+    :param timestamp_overlap_warn_threshold: Fraction of timestamps that may
+        be dropped by the intersection before a ``WARNING`` is emitted.
+        Defaults to ``0.05`` (5%).
+    :type timestamp_overlap_warn_threshold: float
     """
 
     def __init__(
@@ -57,14 +73,20 @@ class MultiAssetBacktestEngine:
     def run(
         self, candles_map: dict[str, pd.DataFrame]
     ) -> dict[str, BacktestResult]:
-        """
-        Run the multi-asset backtest.
+        """Run the multi-asset backtest.
 
-        Args:
-            candles_map: Dict of instrument_id -> normalised OHLCV DataFrame.
+        All portfolios are reset before iteration begins.  Instruments are
+        iterated over a shared timestamp intersection.  Any positions that
+        remain open at the end of the data are force-closed at each
+        instrument's final bar close price with ``signal=None``.
 
-        Returns:
-            Dict of instrument_id -> BacktestResult.
+        :param candles_map: Mapping of ``instrument_id`` to a normalised
+            OHLCV DataFrame (output of
+            :func:`~quaver.backtest.data.normalise_candles`).
+        :type candles_map: dict[str, pandas.DataFrame]
+        :returns: Mapping of ``instrument_id`` to
+            :class:`~quaver.backtest.result.BacktestResult`.
+        :rtype: dict[str, BacktestResult]
         """
         # Reset all portfolios
         for p in self.portfolios.values():
@@ -157,7 +179,16 @@ class MultiAssetBacktestEngine:
     def _get_price_at(
         self, df: pd.DataFrame, ts: datetime
     ) -> float | None:
-        """Return the close price of df at timestamp ts, or None if not found."""
+        """Return the close price of ``df`` at timestamp ``ts``.
+
+        :param df: Normalised OHLCV DataFrame for a single instrument.
+        :type df: pandas.DataFrame
+        :param ts: Timestamp to look up.
+        :type ts: datetime
+        :returns: Close price at ``ts``, or ``None`` if the timestamp is not
+            present in ``df``.
+        :rtype: float or None
+        """
         rows = df[df[self.ts_column] == ts]
         if rows.empty:
             return None
@@ -171,7 +202,31 @@ class MultiAssetBacktestEngine:
         ts: datetime,
         price: float,
     ) -> None:
-        """Apply a single signal to a single instrument's portfolio."""
+        """Apply a single signal to a single instrument's portfolio.
+
+        Routing rules mirror those of
+        :meth:`~quaver.backtest.engine.BacktestEngine._apply_signal`:
+
+        - ``BUY``: open a long if flat; otherwise log at ``DEBUG`` and ignore.
+        - ``SELL``: close an existing long, or (if flat and
+          ``allow_shorting``) open a short; otherwise log and ignore.
+        - ``CLOSE``: close whichever position is open; no-op if flat.
+        - ``HOLD``: log at ``DEBUG`` level; no portfolio action taken.
+
+        :param portfolio: The portfolio for this instrument.
+        :type portfolio: Portfolio
+        :param instrument_id: Identifier of the instrument being traded.
+        :type instrument_id: str
+        :param signal: Signal emitted by the strategy for the current bar.
+        :type signal: SignalOutput
+        :param ts: Timestamp of the current bar.
+        :type ts: datetime
+        :param price: Close price of the current bar used as the execution
+            price.
+        :type price: float
+        :returns: None
+        :rtype: None
+        """
         direction = signal.direction
 
         if direction == SignalDirection.BUY:

@@ -72,7 +72,30 @@ _DEFAULTS: dict[str, Any] = {
 
 @dataclass
 class ProbabilityResult:
-    """Expanding-window probability result for a direction (long or short)."""
+    """Expanding-window probability result for a direction (long or short).
+
+    Produced by :meth:`RegimeMeanReversionStrategy._compute_probabilities` and
+    consumed by :meth:`RegimeMeanReversionStrategy._generate_signal`.
+
+    :param prob_base: Unconditional reversal success probability across all
+        bars that met the return trigger, regardless of regime.
+    :type prob_base: float
+    :param prob_regime: Conditional reversal success probability restricted to
+        bars that were in the same regime as the current bar.
+    :type prob_regime: float
+    :param winloss_base: Average-win / average-loss ratio computed over all
+        triggered base events.
+    :type winloss_base: float
+    :param winloss_regime: Average-win / average-loss ratio restricted to the
+        current regime.
+    :type winloss_regime: float
+    :param events_base: Total number of base events used to compute
+        *prob_base* and *winloss_base*.
+    :type events_base: int
+    :param events_regime: Number of regime-specific events used to compute
+        *prob_regime* and *winloss_regime*.
+    :type events_regime: int
+    """
 
     prob_base: float
     prob_regime: float
@@ -86,9 +109,98 @@ class ProbabilityResult:
 class RegimeMeanReversionStrategy(BaseStrategy):
     """Regime-based probabilistic mean-reversion strategy.
 
-    Classifies markets into regimes, computes expanding-window conditional
-    probabilities, and generates BUY/SELL signals only when probability
-    thresholds are met.
+    Classifies every bar into one of ten market regimes by combining ADX
+    strength, Bollinger Band Width expansion/compression, and relative volume.
+    Signals are emitted only for trending regimes (``TREND_STRONG_*`` /
+    ``TREND_WEAK_*``) and only when expanding-window conditional probabilities
+    satisfy all configured thresholds.
+
+    **Regime classification** (10 labels)
+
+    * ``TREND_STRONG_UP`` / ``TREND_STRONG_DOWN`` / ``TREND_STRONG_UNDEFINED``
+      — ADX above *adx_trend_threshold*, BBW expanding, volume above
+      *volume_strong_threshold*.
+    * ``TREND_WEAK_UP`` / ``TREND_WEAK_DOWN`` / ``TREND_WEAK_UNDEFINED``
+      — ADX above *adx_trend_threshold* but without strong volume/expansion.
+    * ``TRANSITION_CONFIRMED`` / ``TRANSITION_WEAK``
+      — ADX between *adx_transition_low* and *adx_trend_threshold*.
+    * ``COMPRESSION`` — ADX below *adx_transition_low*, BBW low, normal volume.
+    * ``RANGE`` — ADX below *adx_transition_low*, remaining bars.
+
+    **Signal logic**
+
+    * **BUY** when regime is ``TREND_*_UP`` and the current return dips below
+      ``-return_threshold``, subject to probability/win-loss checks.
+    * **SELL** when regime is ``TREND_*_DOWN`` and the current return pops above
+      ``+return_threshold``, subject to probability/win-loss checks.
+
+    :param adx_period: Lookback period for the ADX indicator. Defaults to
+        ``14``.
+    :type adx_period: int
+    :param bb_period: Lookback period for Bollinger Bands. Defaults to ``20``.
+    :type bb_period: int
+    :param bb_std: Standard deviation multiplier for Bollinger Bands.
+        Defaults to ``2.0``.
+    :type bb_std: float
+    :param bbw_percentile_window: Rolling window used to compute the 20th
+        percentile of BBW (compression detection). Defaults to ``250``.
+    :type bbw_percentile_window: int
+    :param bbw_sma_period: SMA period applied to BBW for expansion detection.
+        Defaults to ``5``.
+    :type bbw_sma_period: int
+    :param bbw_lookback: Number of bars to look back when checking whether BBW
+        is increasing. Defaults to ``3``.
+    :type bbw_lookback: int
+    :param sma_fast: Fast SMA period for trend direction. Defaults to ``20``.
+    :type sma_fast: int
+    :param sma_slow: Slow SMA period for trend direction. Must be greater than
+        *sma_fast*. Defaults to ``50``.
+    :type sma_slow: int
+    :param volume_sma_period: SMA period for relative volume normalisation.
+        Defaults to ``20``.
+    :type volume_sma_period: int
+    :param adx_trend_threshold: ADX value above which the market is considered
+        trending. Defaults to ``21.0``.
+    :type adx_trend_threshold: float
+    :param adx_transition_low: Lower ADX bound for the transition regime.
+        Defaults to ``20.0``.
+    :type adx_transition_low: float
+    :param volume_strong_threshold: Relative volume multiplier required for a
+        "strong" trend regime. Defaults to ``1.2``.
+    :type volume_strong_threshold: float
+    :param volume_normal_threshold: Minimum relative volume for a "normal"
+        confirmation. Defaults to ``1.0``.
+    :type volume_normal_threshold: float
+    :param return_threshold: Minimum absolute daily return that qualifies as a
+        dip (for BUY) or a pop (for SELL). Defaults to ``0.02``.
+    :type return_threshold: float
+    :param success_threshold: Minimum next-bar return that counts as a
+        successful reversal. Defaults to ``0.005``.
+    :type success_threshold: float
+    :param prob_threshold_base: Minimum unconditional probability required.
+        Defaults to ``0.50``.
+    :type prob_threshold_base: float
+    :param prob_threshold_weak: Minimum regime probability for weak-trend
+        regimes. Defaults to ``0.50``.
+    :type prob_threshold_weak: float
+    :param prob_threshold_strong: Minimum regime probability for strong-trend
+        regimes. Defaults to ``0.50``.
+    :type prob_threshold_strong: float
+    :param winloss_threshold_weak: Minimum win/loss ratio for weak-trend
+        regimes. Defaults to ``1.3``.
+    :type winloss_threshold_weak: float
+    :param winloss_threshold_strong: Minimum win/loss ratio for strong-trend
+        regimes. Defaults to ``1.3``.
+    :type winloss_threshold_strong: float
+    :param safemargin: Fractional safety margin applied to all threshold
+        comparisons (``0.0`` = no margin). Defaults to ``0.0``.
+    :type safemargin: float
+    :param min_events: Minimum number of historical events required for both
+        base and regime probability estimates. Defaults to ``12``.
+    :type min_events: int
+    :param candle_count: Total number of historical candles requested from the
+        data provider. Defaults to ``500``.
+    :type candle_count: int
     """
 
     display_name = "Regime Mean Reversion"
@@ -101,12 +213,30 @@ class RegimeMeanReversionStrategy(BaseStrategy):
     # -- Helpers --
 
     def _p(self, key: str) -> Any:
-        """Get parameter with default fallback."""
+        """Return a parameter value, falling back to the module-level default.
+
+        :param key: Parameter name to look up in ``self.parameters``.
+        :type key: str
+        :returns: The value stored in ``self.parameters`` for *key*, or the
+            corresponding entry in ``_DEFAULTS`` if the key is absent.
+        :rtype: Any
+        """
         return self.parameters.get(key, _DEFAULTS[key])
 
     # -- BaseStrategy interface --
 
     def validate_parameters(self) -> None:
+        """Validate all strategy parameters.
+
+        Iterates over integer parameters and ensures each is a positive
+        ``int``.  Iterates over float parameters and ensures each is a
+        positive number.  Also validates that *safemargin* is non-negative
+        and that ``sma_fast < sma_slow``.
+
+        :raises ValueError: If any integer parameter is not a positive integer,
+            if any float parameter is not a positive number, if *safemargin* is
+            negative, or if ``sma_fast >= sma_slow``.
+        """
         p = self.parameters
 
         int_keys = [
@@ -143,6 +273,13 @@ class RegimeMeanReversionStrategy(BaseStrategy):
             )
 
     def get_required_candle_count(self) -> int:
+        """Return the number of historical candles required by this strategy.
+
+        Delegates directly to the *candle_count* parameter.
+
+        :returns: The configured *candle_count* value.
+        :rtype: int
+        """
         return self._p("candle_count")
 
     def compute(
@@ -150,6 +287,27 @@ class RegimeMeanReversionStrategy(BaseStrategy):
             candles: pd.DataFrame,
             as_of: datetime,
     ) -> SignalOutput | None:
+        """Run regime-based mean-reversion logic on a single listing's candles.
+
+        Computes all necessary indicators (ADX, Bollinger Bands, SMA, relative
+        volume, daily returns), classifies every bar into a market regime, and
+        emits a BUY or SELL signal for the latest bar when all probability and
+        win/loss thresholds are satisfied.
+
+        :param candles: OHLCV DataFrame ordered by timestamp ascending.
+            Must contain ``open``, ``high``, ``low``, ``close``, and
+            ``volume`` columns.  The current bar being evaluated is **not**
+            included.
+        :type candles: pandas.DataFrame
+        :param as_of: Point-in-time timestamp of the current bar being
+            evaluated.
+        :type as_of: datetime.datetime
+        :returns: A :class:`~quaver.strategies.base.SignalOutput` when all
+            signal conditions are met; ``None`` if data is insufficient, the
+            current regime is non-trending, or probability thresholds are not
+            satisfied.
+        :rtype: SignalOutput or None
+        """
         n = len(candles)
 
         # Minimum data guard
@@ -226,7 +384,20 @@ class RegimeMeanReversionStrategy(BaseStrategy):
             bbw: NDArray[np.float64],
             bbw_sma: NDArray[np.float64],
     ) -> NDArray[np.bool_]:
-        """BBW_EXPANDING = BBW > SMA(BBW, bbw_sma_period) AND BBW > BBW[t-bbw_lookback]."""
+        """Compute a boolean array indicating BBW expansion at each bar.
+
+        A bar is considered expanding when
+        ``bbw[i] > sma(bbw)[i]`` **and** ``bbw[i] > bbw[i - bbw_lookback]``.
+
+        :param bbw: Array of Bollinger Band Width values (length *n*).
+        :type bbw: numpy.ndarray[float64]
+        :param bbw_sma: SMA of *bbw* over *bbw_sma_period* bars (length *n*).
+        :type bbw_sma: numpy.ndarray[float64]
+        :returns: Boolean array of length *n* where ``True`` marks an
+            expanding-BBW bar.  Bars within the first *bbw_lookback* positions,
+            or with ``NaN`` inputs, are set to ``False``.
+        :rtype: numpy.ndarray[bool]
+        """
         n = len(bbw)
         lookback = self._p("bbw_lookback")
         result = np.zeros(n, dtype=bool)
@@ -241,7 +412,20 @@ class RegimeMeanReversionStrategy(BaseStrategy):
             bbw: NDArray[np.float64],
             bbw_pct: NDArray[np.float64],
     ) -> NDArray[np.bool_]:
-        """BBW_LOW = BBW <= rolling_percentile(BBW, 250, P20)."""
+        """Compute a boolean array indicating BBW compression at each bar.
+
+        A bar is compressed when ``bbw[i] <= rolling_percentile(bbw, window, P20)[i]``.
+
+        :param bbw: Array of Bollinger Band Width values (length *n*).
+        :type bbw: numpy.ndarray[float64]
+        :param bbw_pct: Rolling 20th-percentile of *bbw* over
+            *bbw_percentile_window* bars (length *n*).
+        :type bbw_pct: numpy.ndarray[float64]
+        :returns: Boolean array of length *n* where ``True`` marks a
+            compressed-BBW bar.  Bars with ``NaN`` inputs are set to
+            ``False``.
+        :rtype: numpy.ndarray[bool]
+        """
         n = len(bbw)
         result = np.zeros(n, dtype=bool)
         for i in range(n):
@@ -260,7 +444,35 @@ class RegimeMeanReversionStrategy(BaseStrategy):
             sma_f_val: float,
             sma_s_val: float,
     ) -> str | None:
-        """Classify a single bar into one of 10 regimes."""
+        """Classify a single bar into one of the ten regime labels.
+
+        The classification hierarchy is:
+
+        1. ``ADX >= adx_trend_threshold`` → ``TREND_STRONG_*`` or
+           ``TREND_WEAK_*``, with direction determined by the relative
+           position of *close_val* to both SMAs.
+        2. ``adx_transition_low <= ADX < adx_trend_threshold`` →
+           ``TRANSITION_CONFIRMED`` or ``TRANSITION_WEAK``.
+        3. ``ADX < adx_transition_low`` → ``COMPRESSION`` or ``RANGE``.
+
+        :param adx_val: ADX value for this bar.
+        :type adx_val: float
+        :param bbw_expanding: Whether BBW is expanding at this bar.
+        :type bbw_expanding: bool
+        :param bbw_low: Whether BBW is in compression territory at this bar.
+        :type bbw_low: bool
+        :param vol_rel_val: Relative volume (volume / SMA(volume)) at this bar.
+        :type vol_rel_val: float
+        :param close_val: Closing price at this bar.
+        :type close_val: float
+        :param sma_f_val: Fast SMA value at this bar.
+        :type sma_f_val: float
+        :param sma_s_val: Slow SMA value at this bar.
+        :type sma_s_val: float
+        :returns: One of the ten regime label strings, or ``None`` if either
+            *adx_val* or *vol_rel_val* is ``NaN``.
+        :rtype: str or None
+        """
         if np.isnan(adx_val) or np.isnan(vol_rel_val):
             return None
 
@@ -312,7 +524,29 @@ class RegimeMeanReversionStrategy(BaseStrategy):
             sma_f: NDArray[np.float64],
             sma_s: NDArray[np.float64],
     ) -> list[str | None]:
-        """Classify regime for every bar."""
+        """Classify the market regime for every bar in the series.
+
+        Iterates over all *n* bars and delegates each to
+        :meth:`_classify_regime`.
+
+        :param adx_arr: ADX values array of length *n*.
+        :type adx_arr: numpy.ndarray[float64]
+        :param bbw_expanding: Boolean expansion flags array of length *n*.
+        :type bbw_expanding: numpy.ndarray[bool]
+        :param bbw_low: Boolean compression flags array of length *n*.
+        :type bbw_low: numpy.ndarray[bool]
+        :param vol_rel: Relative volume array of length *n*.
+        :type vol_rel: numpy.ndarray[float64]
+        :param close: Closing prices array of length *n*.
+        :type close: numpy.ndarray[float64]
+        :param sma_f: Fast SMA values array of length *n*.
+        :type sma_f: numpy.ndarray[float64]
+        :param sma_s: Slow SMA values array of length *n*.
+        :type sma_s: numpy.ndarray[float64]
+        :returns: List of length *n* where each element is a regime label
+            string or ``None`` when classification is not possible.
+        :rtype: list[str or None]
+        """
         n = len(adx_arr)
         regimes: list[str | None] = [None] * n
         for i in range(n):
@@ -334,7 +568,29 @@ class RegimeMeanReversionStrategy(BaseStrategy):
             current_regime: str,
             t: int,
     ) -> ProbabilityResult | None:
-        """Expanding-window conditional probability computation."""
+        """Compute expanding-window conditional probabilities up to bar *t*.
+
+        Scans all bars ``0 .. t-1``, identifies events where a dip (for long)
+        or pop (for short) exceeds *return_threshold*, and accumulates success
+        counts and win/loss sums for both the unconditional (base) pool and the
+        regime-specific pool.
+
+        :param returns: Daily return array of length *n* (``close[i]/close[i-1] - 1``).
+        :type returns: numpy.ndarray[float64]
+        :param regimes: Regime label list of length *n*, as produced by
+            :meth:`_classify_all_regimes`.
+        :type regimes: list[str or None]
+        :param current_regime: The regime label of the latest bar.  Used to
+            filter the regime-specific pool.
+        :type current_regime: str
+        :param t: Index of the latest bar.  Only bars with index ``< t`` are
+            used.
+        :type t: int
+        :returns: A :class:`ProbabilityResult` populated with base and regime
+            statistics, or ``None`` if either pool has fewer than *min_events*
+            qualifying events.
+        :rtype: ProbabilityResult or None
+        """
         return_threshold = self._p("return_threshold")
         success_threshold = self._p("success_threshold")
         min_events = self._p("min_events")
@@ -432,7 +688,39 @@ class RegimeMeanReversionStrategy(BaseStrategy):
             bbw_val: float | None,
             vol_rel_val: float | None,
     ) -> SignalOutput | None:
-        """Apply threshold checks and produce BUY/SELL signal."""
+        """Apply threshold checks and produce a BUY or SELL signal.
+
+        Runs four sequential gate checks:
+
+        1. Current return exceeds the dip/pop trigger (adjusted by
+           *safemargin*).
+        2. Base probability exceeds *prob_threshold_base*.
+        3. Regime probability exceeds the appropriate threshold
+           (*prob_threshold_strong* or *prob_threshold_weak*).
+        4. Regime win/loss ratio exceeds the appropriate threshold
+           (*winloss_threshold_strong* or *winloss_threshold_weak*).
+
+        :param regime: Current regime label string.
+        :type regime: str
+        :param curr_return: Daily return of the latest bar.
+        :type curr_return: float
+        :param probs: Pre-computed probability and win/loss statistics.
+        :type probs: ProbabilityResult
+        :param is_long: ``True`` for BUY (up-trend regime), ``False`` for SELL
+            (down-trend regime).
+        :type is_long: bool
+        :param adx_val: ADX value for the latest bar, or ``None`` if ``NaN``.
+        :type adx_val: float or None
+        :param bbw_val: Bollinger Band Width for the latest bar, or ``None``
+            if ``NaN``.
+        :type bbw_val: float or None
+        :param vol_rel_val: Relative volume for the latest bar, or ``None``
+            if ``NaN``.
+        :type vol_rel_val: float or None
+        :returns: A :class:`~quaver.strategies.base.SignalOutput` when all
+            gate checks pass; ``None`` if any check fails.
+        :rtype: SignalOutput or None
+        """
         return_threshold = self._p("return_threshold")
         safemargin = self._p("safemargin")
 
@@ -495,6 +783,13 @@ class RegimeMeanReversionStrategy(BaseStrategy):
 
     @classmethod
     def get_parameter_schema(cls) -> dict[str, Any]:
+        """Return a JSON Schema object describing all strategy parameters.
+
+        :returns: A ``dict`` conforming to JSON Schema ``"type": "object"``
+            with a ``"properties"`` key enumerating every supported parameter
+            together with its type, constraints, and default value.
+        :rtype: dict[str, Any]
+        """
         return {
             "type": "object",
             "properties": {
@@ -526,4 +821,10 @@ class RegimeMeanReversionStrategy(BaseStrategy):
 
     @classmethod
     def get_default_parameters(cls) -> dict[str, Any]:
+        """Return a copy of the default parameter dictionary.
+
+        :returns: Mapping of every parameter name to its default value as
+            defined in the module-level ``_DEFAULTS`` constant.
+        :rtype: dict[str, Any]
+        """
         return dict(_DEFAULTS)

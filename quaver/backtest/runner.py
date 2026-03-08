@@ -27,26 +27,45 @@ def run_backtest(
     ts_column: str = "ts",
     allow_shorting: bool = False,
 ) -> BacktestResult:
-    """
-    Run a single-asset walk-forward backtest.
+    """Run a single-asset walk-forward backtest.
 
-    Args:
-        engine_name: Registered strategy name (e.g. "mean_reversion").
-        parameters: Strategy parameter dict.
-        candles: Raw OHLCV DataFrame (will be normalised internally).
-        instrument_id: Label used in results and trade records.
-        initial_capital: Starting cash balance (default 10,000).
-        quantity_per_trade: Fixed units per trade (default 1.0).
-        ts_column: Name of the timestamp column (default "ts").
-        allow_shorting: If True, SELL signals from flat portfolio open a short.
+    Convenience wrapper that resolves the strategy from the registry,
+    normalises the candle data, constructs a
+    :class:`~quaver.backtest.portfolio.Portfolio` and
+    :class:`~quaver.backtest.engine.BacktestEngine`, and returns the result.
 
-    Returns:
-        BacktestResult with all trades and performance metrics.
-
-    Raises:
-        EngineNotFoundError: if engine_name is not in the registry.
-        TypeError: if the engine is a MultiAssetStrategy (use run_multi_asset_backtest).
-        ValueError: on invalid parameters or insufficient candles.
+    :param engine_name: Registered strategy name (e.g. ``"mean_reversion"``).
+    :type engine_name: str
+    :param parameters: Strategy-specific parameter dictionary passed to the
+        strategy constructor.
+    :type parameters: dict
+    :param candles: Raw OHLCV DataFrame; normalisation is applied internally
+        via :func:`~quaver.backtest.data.normalise_candles`.
+    :type candles: pandas.DataFrame
+    :param instrument_id: Label embedded in trade records and the result
+        object.
+    :type instrument_id: str
+    :param initial_capital: Starting cash balance.  Defaults to ``10_000.0``.
+    :type initial_capital: float
+    :param quantity_per_trade: Fixed number of units per trade.  Defaults to
+        ``1.0``.
+    :type quantity_per_trade: float
+    :param ts_column: Name of the timestamp column in ``candles``.  Defaults
+        to ``"ts"``.
+    :type ts_column: str
+    :param allow_shorting: When ``True``, ``SELL`` signals from a flat
+        portfolio open a short position.  Defaults to ``False``.
+    :type allow_shorting: bool
+    :returns: :class:`~quaver.backtest.result.BacktestResult` containing all
+        trades and performance metrics.
+    :rtype: BacktestResult
+    :raises EngineNotFoundError: If ``engine_name`` is not present in the
+        strategy registry.
+    :raises TypeError: If ``engine_name`` resolves to a
+        :class:`~quaver.strategies.base.MultiAssetStrategy`; use
+        :func:`run_multi_asset_backtest` instead.
+    :raises ValueError: If strategy parameters are invalid or if ``candles``
+        contains fewer rows than required by the strategy.
     """
     strategy_cls = StrategyRegistry.get(engine_name)
 
@@ -86,28 +105,48 @@ def run_multi_asset_backtest(
     allow_shorting: bool = False,
     timestamp_overlap_warn_threshold: float = 0.05,
 ) -> dict[str, BacktestResult]:
-    """
-    Run a multi-asset walk-forward backtest.
+    """Run a multi-asset walk-forward backtest.
 
-    Args:
-        engine_name: Registered MultiAssetStrategy name.
-        parameters: Strategy parameter dict.
-        candles_map: Dict of instrument_id -> raw OHLCV DataFrame.
-        initial_capital: Starting cash per instrument portfolio (default 10,000).
-        quantity_per_trade: Fixed units per trade per instrument (default 1.0).
-        ts_column: Timestamp column name (default "ts").
-        allow_shorting: Passed to each instrument's portfolio engine.
-        timestamp_overlap_warn_threshold: If the shared timestamp intersection
-            drops more than this fraction of timestamps from any instrument,
-            a WARNING is logged. Default 0.05 (5%).
+    Convenience wrapper that resolves the strategy from the registry,
+    normalises all candle DataFrames, builds one
+    :class:`~quaver.backtest.portfolio.Portfolio` per instrument, constructs a
+    :class:`~quaver.backtest.multi_engine.MultiAssetBacktestEngine`, and
+    returns the per-instrument results.
 
-    Returns:
-        Dict of instrument_id -> BacktestResult.
-
-    Raises:
-        TypeError: if engine_name resolves to a single-asset strategy.
-        ValueError: if required instruments are missing from candles_map,
-                    or if any instrument has insufficient candles.
+    :param engine_name: Registered
+        :class:`~quaver.strategies.base.MultiAssetStrategy` name.
+    :type engine_name: str
+    :param parameters: Strategy-specific parameter dictionary passed to the
+        strategy constructor.
+    :type parameters: dict
+    :param candles_map: Mapping of ``instrument_id`` to a raw OHLCV
+        DataFrame; normalisation is applied internally.
+    :type candles_map: dict[str, pandas.DataFrame]
+    :param initial_capital: Starting cash balance per instrument portfolio.
+        Defaults to ``10_000.0``.
+    :type initial_capital: float
+    :param quantity_per_trade: Fixed number of units per trade per instrument.
+        Defaults to ``1.0``.
+    :type quantity_per_trade: float
+    :param ts_column: Timestamp column name shared by all DataFrames.
+        Defaults to ``"ts"``.
+    :type ts_column: str
+    :param allow_shorting: Passed through to each instrument's portfolio
+        engine.  Defaults to ``False``.
+    :type allow_shorting: bool
+    :param timestamp_overlap_warn_threshold: If the shared timestamp
+        intersection drops more than this fraction of any instrument's
+        timestamps, a ``WARNING`` is logged.  Defaults to ``0.05`` (5%).
+    :type timestamp_overlap_warn_threshold: float
+    :returns: Mapping of ``instrument_id`` to
+        :class:`~quaver.backtest.result.BacktestResult`.
+    :rtype: dict[str, BacktestResult]
+    :raises TypeError: If ``engine_name`` resolves to a single-asset
+        :class:`~quaver.strategies.base.BaseStrategy`; use
+        :func:`run_backtest` instead.
+    :raises ValueError: If instruments required by the strategy are absent
+        from ``candles_map``, or if any instrument has fewer candles than the
+        strategy requires.
     """
     strategy_cls = StrategyRegistry.get(engine_name)
 
