@@ -269,6 +269,49 @@ class PairsMeanReversionStrategy(MultiAssetStrategy):
         return None
 
     @classmethod
+    def get_parameter_schema(cls) -> dict[str, Any]:
+        """Return a JSON Schema describing accepted parameters.
+
+        :returns: JSON Schema object with parameter types, constraints, and
+            defaults.
+        :rtype: dict[str, Any]
+        """
+        return {
+            "type": "object",
+            "properties": {
+                "instrument_a": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Identifier of the first leg.",
+                },
+                "instrument_b": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Identifier of the second leg. Must differ from instrument_a.",
+                },
+                "spread_window": {
+                    "type": "integer",
+                    "minimum": 2,
+                    "default": 60,
+                    "description": "Rolling window for z-score mean and standard deviation.",
+                },
+                "entry_z": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "default": 2.0,
+                    "description": "Z-score magnitude threshold to open a position. Must be greater than exit_z.",
+                },
+                "exit_z": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "default": 0.5,
+                    "description": "Z-score magnitude threshold to close an open position. Must be less than entry_z.",
+                },
+            },
+            "required": ["instrument_a", "instrument_b", *_DEFAULTS.keys()],
+        }
+
+    @classmethod
     def get_default_parameters(cls) -> dict[str, Any]:
         """Return a copy of the default parameter dictionary.
 

@@ -155,6 +155,39 @@ class MeanReversionStrategy(BaseStrategy):
         )
 
     @classmethod
+    def get_parameter_schema(cls) -> dict[str, Any]:
+        """Return a JSON Schema describing accepted parameters.
+
+        :returns: JSON Schema object with parameter types, constraints, and
+            defaults.
+        :rtype: dict[str, Any]
+        """
+        return {
+            "type": "object",
+            "properties": {
+                "fast_period": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 20,
+                    "description": "Short MA window. Must be less than slow_period.",
+                },
+                "slow_period": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 50,
+                    "description": "Long MA window. Must be greater than fast_period.",
+                },
+                "threshold": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "default": 0.02,
+                    "description": "Relative divergence threshold to trigger a signal (e.g. 0.02 = 2%).",
+                },
+            },
+            "required": list(_DEFAULTS.keys()),
+        }
+
+    @classmethod
     def get_default_parameters(cls) -> dict[str, Any]:
         """Return a copy of the default parameter dictionary.
 

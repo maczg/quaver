@@ -245,6 +245,81 @@ class PullbackTrendStrategy(BaseStrategy):
         )
 
     @classmethod
+    def get_parameter_schema(cls) -> dict[str, Any]:
+        """Return a JSON Schema describing accepted parameters.
+
+        :returns: JSON Schema object with parameter types, constraints, and
+            defaults.
+        :rtype: dict[str, Any]
+        """
+        return {
+            "type": "object",
+            "properties": {
+                "ma_fast": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 20,
+                    "description": "Short-term MA window. Must be less than ma_medium.",
+                },
+                "ma_medium": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 50,
+                    "description": "Medium-term MA window. Must be between ma_fast and ma_slow.",
+                },
+                "ma_slow": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 200,
+                    "description": "Long-term MA window. Must be greater than ma_medium.",
+                },
+                "rsi_period": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 14,
+                    "description": "RSI lookback period.",
+                },
+                "rsi_low": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 40,
+                    "description": "Lower bound of the RSI pullback zone. Must be less than rsi_high.",
+                },
+                "rsi_high": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 50,
+                    "description": "Upper bound of the RSI pullback zone. Must be greater than rsi_low.",
+                },
+                "atr_period": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 14,
+                    "description": "ATR lookback for stop-loss buffer.",
+                },
+                "atr_stop_mult": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "default": 0.5,
+                    "description": "Multiplier of ATR for stop-loss buffer below the pullback low.",
+                },
+                "slope_lookback": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 5,
+                    "description": "Number of bars to look back for MA slope check.",
+                },
+                "near_ma_pct": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "default": 0.02,
+                    "description": "Maximum distance above MA(ma_fast) as a fraction (e.g. 0.02 = 2%).",
+                },
+            },
+            "required": list(_DEFAULTS.keys()),
+        }
+
+    @classmethod
     def get_default_parameters(cls) -> dict[str, Any]:
         """Return a copy of the default parameter dictionary.
 
