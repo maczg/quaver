@@ -374,3 +374,131 @@ def volume_relative(
             np.nan,
         )
     return out
+
+
+def atr(
+    high: NDArray[np.float64],
+    low: NDArray[np.float64],
+    close: NDArray[np.float64],
+    period: int = 14,
+) -> NDArray[np.float64]:
+    """Compute the Average True Range using a simple moving average.
+
+    Calculates the True Range for each bar and then smooths it with a
+    :func:`sma` of length *period*.  The first valid ATR value appears at
+    index ``period`` (because True Range index 0 is ``NaN``).
+
+    :param high: One-dimensional array of bar high prices.
+    :type high: NDArray[np.float64]
+    :param low: One-dimensional array of bar low prices.
+    :type low: NDArray[np.float64]
+    :param close: One-dimensional array of bar closing prices.
+    :type close: NDArray[np.float64]
+    :param period: Rolling window length for the SMA smoothing.
+        Must be >= 1. Defaults to ``14``.
+    :type period: int
+    :returns: Array of the same length as *high* containing ATR values,
+        with ``NaN`` for leading positions where insufficient data exists.
+    :rtype: NDArray[np.float64]
+    """
+    n = len(high)
+    out = np.full(n, np.nan)
+    if n < period + 1:
+        return out
+    tr = true_range(high, low, close)
+    # Compute SMA over TR starting from index 1 (index 0 is NaN)
+    for i in range(period, n):
+        out[i] = np.mean(tr[i - period + 1 : i + 1])
+    return out
+
+
+def rsi(
+    close: NDArray[np.float64],
+    period: int = 14,
+) -> NDArray[np.float64]:
+    """Compute the Relative Strength Index (SMA-based).
+
+    Uses simple moving averages of gains and losses over *period* bars::
+
+        RSI = 100 - 100 / (1 + avg_gain / avg_loss)
+
+    The first valid RSI appears at index *period*.  Returns ``100.0``
+    when average loss is zero (all gains).
+
+    :param close: One-dimensional array of closing prices.
+    :type close: NDArray[np.float64]
+    :param period: Lookback period for gain/loss averages.
+        Must be >= 1. Defaults to ``14``.
+    :type period: int
+    :returns: Array of the same length as *close* containing RSI values
+        in ``[0, 100]``, with ``NaN`` for the first *period* positions.
+    :rtype: NDArray[np.float64]
+    """
+    n = len(close)
+    out = np.full(n, np.nan)
+    if n < period + 1:
+        return out
+    delta = close[1:] - close[:-1]  # length n-1
+    gain = np.maximum(delta, 0.0)
+    loss = np.maximum(-delta, 0.0)
+    for i in range(period, n):
+        avg_g = float(np.mean(gain[i - period : i]))
+        avg_l = float(np.mean(loss[i - period : i]))
+        if avg_l == 0.0:
+            out[i] = 100.0
+        else:
+            rs = avg_g / avg_l
+            out[i] = 100.0 - (100.0 / (1.0 + rs))
+    return out
+
+
+def rolling_max(
+    values: NDArray[np.float64],
+    period: int,
+) -> NDArray[np.float64]:
+    """Compute the rolling maximum over a fixed-size sliding window.
+
+    For each position *i* >= ``period - 1``, the result is the maximum of
+    ``values[i - period + 1 : i + 1]``.  Leading positions are ``NaN``.
+
+    :param values: One-dimensional array of input values.
+    :type values: NDArray[np.float64]
+    :param period: Number of elements in the rolling window. Must be >= 1.
+    :type period: int
+    :returns: Array of the same length as *values* containing rolling
+        maximum values, with ``NaN`` for the first ``period - 1`` positions.
+    :rtype: NDArray[np.float64]
+    """
+    n = len(values)
+    out = np.full(n, np.nan)
+    if period < 1 or n < period:
+        return out
+    for i in range(period - 1, n):
+        out[i] = np.nanmax(values[i - period + 1 : i + 1])
+    return out
+
+
+def rolling_min(
+    values: NDArray[np.float64],
+    period: int,
+) -> NDArray[np.float64]:
+    """Compute the rolling minimum over a fixed-size sliding window.
+
+    For each position *i* >= ``period - 1``, the result is the minimum of
+    ``values[i - period + 1 : i + 1]``.  Leading positions are ``NaN``.
+
+    :param values: One-dimensional array of input values.
+    :type values: NDArray[np.float64]
+    :param period: Number of elements in the rolling window. Must be >= 1.
+    :type period: int
+    :returns: Array of the same length as *values* containing rolling
+        minimum values, with ``NaN`` for the first ``period - 1`` positions.
+    :rtype: NDArray[np.float64]
+    """
+    n = len(values)
+    out = np.full(n, np.nan)
+    if period < 1 or n < period:
+        return out
+    for i in range(period - 1, n):
+        out[i] = np.nanmin(values[i - period + 1 : i + 1])
+    return out

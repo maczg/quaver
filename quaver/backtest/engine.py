@@ -158,7 +158,13 @@ class BacktestEngine:
             if self.portfolio.is_flat():
                 self.portfolio.open_long(self.instrument_id, as_of, price, signal)
             else:
-                log.debug("BUY signal ignored: position already open")
+                pos = self.portfolio._open_position
+                if pos is not None and pos.direction == SignalDirection.SELL:
+                    # Close-and-reverse: close the short, then open long
+                    self.portfolio.close_short(as_of, price, signal)
+                    self.portfolio.open_long(self.instrument_id, as_of, price, signal)
+                else:
+                    log.debug("BUY signal ignored: long position already open")
 
         elif direction == SignalDirection.SELL:
             pos = self.portfolio._open_position

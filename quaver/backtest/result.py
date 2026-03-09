@@ -158,7 +158,7 @@ class BacktestResult:
 
             max_drawdown = (trough - peak) / initial_capital
 
-        Always ``<= 0``.  Returns ``0.0`` when fewer than 2 trades are present
+        Always ``<= 0``.  Returns ``0.0`` when no trades are present
         or when ``initial_capital`` is zero.
 
         :returns: Maximum drawdown as a non-positive fraction (e.g. ``-0.12``
@@ -166,18 +166,18 @@ class BacktestResult:
         :rtype: float
         """
         cpnl = self.cumulative_pnl
-        if len(cpnl) < 2 or self.initial_capital == 0:
+        if not cpnl or self.initial_capital == 0:
             return 0.0
         arr = np.array(cpnl, dtype=float)
-        peak = arr[0]
+        peak = 0.0  # equity starts at zero P&L before any trade
         max_dd = 0.0
-        for v in arr[1:]:
+        for v in arr:
             if v > peak:
                 peak = v
             dd = (v - peak) / self.initial_capital
             if dd < max_dd:
                 max_dd = dd
-        return round(max_dd, 6)
+        return round(float(max_dd), 6)
 
     @property
     def sharpe_ratio(self) -> float:
@@ -213,12 +213,15 @@ class BacktestResult:
 
             profit_factor = sum(winning pnl) / abs(sum(losing pnl))
 
-        Returns ``float('inf')`` when there are no losing trades.
+        Returns ``0.0`` when there are no trades, or ``float('inf')`` when
+        all trades are profitable (no losing trades).
 
-        :returns: Profit factor rounded to 4 decimal places, or ``inf`` when
-            gross loss is zero.
+        :returns: Profit factor rounded to 4 decimal places, ``0.0`` when
+            no trades exist, or ``inf`` when gross loss is zero.
         :rtype: float
         """
+        if not self.trades:
+            return 0.0
         gross_profit = sum(t.pnl for t in self.trades if t.pnl > 0)
         gross_loss = abs(sum(t.pnl for t in self.trades if t.pnl < 0))
         if gross_loss == 0:

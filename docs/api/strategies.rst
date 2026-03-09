@@ -56,3 +56,27 @@ Pairs Mean Reversion
    :members:
    :undoc-members:
    :show-inheritance:
+
+Breakout from Consolidation
+---------------------------
+
+.. automodule:: quaver.strategies.breakout_consolidation
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Pullback in Trend
+-----------------
+
+.. automodule:: quaver.strategies.pullback_trend
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Reversal at Support
+-------------------
+
+.. automodule:: quaver.strategies.reversal_support
+   :members:
+   :undoc-members:
+   :show-inheritance:
