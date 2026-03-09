@@ -129,7 +129,9 @@ def test_pairs_legs_have_equal_trade_count():
     params = {**PARAMS, "entry_z": 1.5, "exit_z": 0.3}
     strategy = PairsMeanReversionStrategy(parameters=params)
     engine = MultiAssetBacktestEngine(
-        strategy=strategy, portfolios=portfolios, allow_shorting=True,
+        strategy=strategy,
+        portfolios=portfolios,
+        allow_shorting=True,
     )
     results = engine.run(candles_map)
     assert results["A"].total_trades == results["B"].total_trades
