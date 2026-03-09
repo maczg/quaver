@@ -73,6 +73,25 @@ class TimeFrame(str, enum.Enum):
     W1 = "1w"
 
 
+class ExitReason(str, enum.Enum):
+    """Reason a position was closed during a backtest.
+
+    Members:
+
+    - ``SIGNAL`` — closed by a strategy signal (SELL, CLOSE, or reversal).
+    - ``STOP_LOSS`` — closed by a stop-loss trigger.
+    - ``TAKE_PROFIT`` — closed by a take-profit trigger.
+    - ``TRAILING_STOP`` — closed by a trailing-stop trigger.
+    - ``END_OF_DATA`` — force-closed at the end of the data series.
+    """
+
+    SIGNAL = "signal"
+    STOP_LOSS = "stop_loss"
+    TAKE_PROFIT = "take_profit"
+    TRAILING_STOP = "trailing_stop"
+    END_OF_DATA = "end_of_data"
+
+
 class InstrumentType(str, enum.Enum):
     """Classification of a financial instrument.
 

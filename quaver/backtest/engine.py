@@ -8,7 +8,7 @@ from datetime import datetime
 import pandas as pd
 
 from quaver.strategies.base import BaseStrategy, SignalOutput
-from quaver.types import SignalDirection
+from quaver.types import ExitReason, SignalDirection
 from quaver.backtest.portfolio import Portfolio
 from quaver.backtest.result import BacktestResult
 
@@ -98,6 +98,15 @@ class BacktestEngine:
             current = candles.iloc[i]
             as_of: datetime = current[self.ts_column]
             price = float(current["close"])
+            high = float(current["high"])
+            low = float(current["low"])
+
+            # Check exit triggers before strategy.compute
+            trigger = self.portfolio.check_exit_triggers(as_of, high, low)
+            if trigger is not None:
+                reason, fill_price = trigger
+                self._close_position(as_of, fill_price, signal=None, exit_reason=reason)
+                continue
 
             signal = self.strategy.compute(window, as_of)
             if signal is None:
@@ -115,13 +124,27 @@ class BacktestEngine:
                 last_ts,
                 last_price,
             )
-            pos = self.portfolio._open_position
-            if pos is not None and pos.direction == SignalDirection.BUY:
-                self.portfolio.close_long(last_ts, last_price, signal=None)
-            else:
-                self.portfolio.close_short(last_ts, last_price, signal=None)
+            self._close_position(
+                last_ts, last_price, signal=None, exit_reason=ExitReason.END_OF_DATA
+            )
 
         return BacktestResult.from_portfolio(self.portfolio, candles, self.instrument_id)
+
+    def _close_position(
+        self,
+        ts: datetime,
+        price: float,
+        signal: SignalOutput | None,
+        exit_reason: ExitReason | None = None,
+    ) -> None:
+        """Close the currently open position (long or short)."""
+        pos = self.portfolio._open_position
+        if pos is None:
+            return
+        if pos.direction == SignalDirection.BUY:
+            self.portfolio.close_long(ts, price, signal, exit_reason=exit_reason)
+        else:
+            self.portfolio.close_short(ts, price, signal, exit_reason=exit_reason)
 
     def _apply_signal(
         self,
@@ -161,7 +184,7 @@ class BacktestEngine:
                 pos = self.portfolio._open_position
                 if pos is not None and pos.direction == SignalDirection.SELL:
                     # Close-and-reverse: close the short, then open long
-                    self.portfolio.close_short(as_of, price, signal)
+                    self.portfolio.close_short(as_of, price, signal, exit_reason=ExitReason.SIGNAL)
                     self.portfolio.open_long(self.instrument_id, as_of, price, signal)
                 else:
                     log.debug("BUY signal ignored: long position already open")
@@ -170,7 +193,7 @@ class BacktestEngine:
             pos = self.portfolio._open_position
             if pos is not None and pos.direction == SignalDirection.BUY:
                 # Close an existing long
-                self.portfolio.close_long(as_of, price, signal)
+                self.portfolio.close_long(as_of, price, signal, exit_reason=ExitReason.SIGNAL)
             elif self.portfolio.is_flat():
                 if self.allow_shorting:
                     self.portfolio.open_short(self.instrument_id, as_of, price, signal)
@@ -182,11 +205,7 @@ class BacktestEngine:
 
         elif direction == SignalDirection.CLOSE:
             if not self.portfolio.is_flat():
-                pos = self.portfolio._open_position
-                if pos is not None and pos.direction == SignalDirection.BUY:
-                    self.portfolio.close_long(as_of, price, signal)
-                else:
-                    self.portfolio.close_short(as_of, price, signal)
+                self._close_position(as_of, price, signal, exit_reason=ExitReason.SIGNAL)
 
         elif direction == SignalDirection.HOLD:
             log.debug("HOLD signal at %s — no action", as_of)

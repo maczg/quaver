@@ -22,17 +22,28 @@ single-asset and multi-asset strategies.
 """
 
 from quaver.backtest.engine import BacktestEngine
-from quaver.backtest.portfolio import Portfolio, TradeRecord
+from quaver.backtest.portfolio import (
+    CommissionConfig,
+    ExitRules,
+    Portfolio,
+    SlippageConfig,
+    TradeRecord,
+)
 from quaver.backtest.result import BacktestResult
 from quaver.backtest.runner import run_backtest, run_multi_asset_backtest
 from quaver.backtest.multi_engine import MultiAssetBacktestEngine
+from quaver.backtest.sizing import size_by_risk
 
 __all__ = [
     "BacktestEngine",
     "BacktestResult",
+    "CommissionConfig",
+    "ExitRules",
     "MultiAssetBacktestEngine",
     "Portfolio",
+    "SlippageConfig",
     "TradeRecord",
     "run_backtest",
     "run_multi_asset_backtest",
+    "size_by_risk",
 ]

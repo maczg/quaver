@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 
 import pandas as pd
 
@@ -11,7 +12,7 @@ from quaver.strategies.registry import StrategyRegistry
 from quaver.backtest.data import normalise_candles, validate_candles
 from quaver.backtest.engine import BacktestEngine
 from quaver.backtest.multi_engine import MultiAssetBacktestEngine
-from quaver.backtest.portfolio import Portfolio
+from quaver.backtest.portfolio import CommissionConfig, ExitRules, Portfolio, SlippageConfig
 from quaver.backtest.result import BacktestResult
 
 log = logging.getLogger(__name__)
@@ -26,6 +27,10 @@ def run_backtest(
     quantity_per_trade: float = 1.0,
     ts_column: str = "ts",
     allow_shorting: bool = False,
+    commission: CommissionConfig | None = None,
+    slippage: SlippageConfig | None = None,
+    sizing_fn: Callable[[float, float], float] | None = None,
+    exit_rules: ExitRules | None = None,
 ) -> BacktestResult:
     """Run a single-asset walk-forward backtest.
 
@@ -84,6 +89,10 @@ def run_backtest(
     portfolio = Portfolio(
         initial_capital=initial_capital,
         quantity_per_trade=quantity_per_trade,
+        commission=commission,
+        slippage=slippage,
+        sizing_fn=sizing_fn,
+        exit_rules=exit_rules,
     )
     engine = BacktestEngine(
         strategy=strategy,
@@ -104,6 +113,10 @@ def run_multi_asset_backtest(
     ts_column: str = "ts",
     allow_shorting: bool = False,
     timestamp_overlap_warn_threshold: float = 0.05,
+    commission: CommissionConfig | None = None,
+    slippage: SlippageConfig | None = None,
+    sizing_fn: Callable[[float, float], float] | None = None,
+    exit_rules: ExitRules | None = None,
 ) -> dict[str, BacktestResult]:
     """Run a multi-asset walk-forward backtest.
 
@@ -177,6 +190,10 @@ def run_multi_asset_backtest(
         iid: Portfolio(
             initial_capital=initial_capital,
             quantity_per_trade=quantity_per_trade,
+            commission=commission,
+            slippage=slippage,
+            sizing_fn=sizing_fn,
+            exit_rules=exit_rules,
         )
         for iid in clean_map
     }

@@ -50,6 +50,7 @@ OHLCV candle data.
 """
 
 from quaver.types import (
+    ExitReason,
     SignalDirection,
     SignalStrength,
     TimeFrame,
@@ -66,6 +67,7 @@ from quaver.strategies.base import (
 
 __all__ = [
     "BaseStrategy",
+    "ExitReason",
     "MultiAssetStrategy",
     "MultiAssetStrategyOutput",
     "SignalOutput",

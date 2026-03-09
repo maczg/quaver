@@ -2,7 +2,7 @@
 
 import pytest
 from datetime import datetime
-from quaver.backtest.portfolio import Portfolio
+from quaver.backtest.portfolio import CommissionConfig, Portfolio, SlippageConfig
 from quaver.strategies.base import SignalOutput
 from quaver.types import SignalDirection
 
@@ -68,3 +68,71 @@ def test_close_short_without_open_raises():
     p = Portfolio(initial_capital=10_000)
     with pytest.raises(RuntimeError):
         p.close_short(TS, 100.0, signal=None)
+
+
+# ── Commission & slippage tests ─────────────────────────────────────────────
+
+
+def test_commission_fixed_per_trade():
+    comm = CommissionConfig(fixed_per_trade=5.0)
+    p = Portfolio(initial_capital=10_000, quantity_per_trade=1.0, commission=comm)
+    p.open_long("AAPL", TS, 100.0, make_signal())
+    # Cash: 10000 - 100*1 - 5 = 9895
+    assert p.cash == pytest.approx(9895.0)
+    rec = p.close_long(TS2, 110.0, make_signal(SignalDirection.SELL))
+    # Cash: 9895 + 110*1 - 5 = 10000
+    assert p.cash == pytest.approx(10000.0)
+    assert rec.commission == pytest.approx(10.0)  # 5 entry + 5 exit
+    assert rec.pnl == pytest.approx(10.0)  # ideal P&L
+    assert rec.net_pnl == pytest.approx(0.0)  # 10 - 10 - 0
+
+
+def test_commission_pct_of_notional():
+    comm = CommissionConfig(pct_of_notional=0.001)  # 0.1%
+    p = Portfolio(initial_capital=10_000, quantity_per_trade=10.0, commission=comm)
+    p.open_long("AAPL", TS, 100.0, make_signal())
+    # Entry commission: 0.001 * 100 * 10 = 1.0
+    # Cash: 10000 - 100*10 - 1 = 8999
+    assert p.cash == pytest.approx(8999.0)
+
+
+def test_slippage_long_trade():
+    slip = SlippageConfig(slippage_pct=0.01)  # 1%
+    p = Portfolio(initial_capital=100_000, quantity_per_trade=1.0, slippage=slip)
+    p.open_long("AAPL", TS, 100.0, make_signal())
+    # Fill price = 100 * 1.01 = 101
+    # Cash: 100000 - 101 = 99899
+    assert p.cash == pytest.approx(99899.0)
+    rec = p.close_long(TS2, 110.0, make_signal(SignalDirection.SELL))
+    # Fill price = 110 * 0.99 = 108.9
+    # Cash: 99899 + 108.9 = 100007.9
+    assert p.cash == pytest.approx(100007.9)
+    assert rec.pnl == pytest.approx(10.0)  # ideal
+    assert rec.slippage_cost == pytest.approx(1.0 + 1.1)  # entry + exit
+
+
+def test_slippage_short_trade():
+    slip = SlippageConfig(slippage_pct=0.01)
+    p = Portfolio(initial_capital=100_000, quantity_per_trade=1.0, slippage=slip)
+    p.open_short("AAPL", TS, 100.0, make_signal(SignalDirection.SELL))
+    # Fill price = 100 * 0.99 = 99
+    # Cash: 100000 + 99 = 100099
+    assert p.cash == pytest.approx(100099.0)
+    rec = p.close_short(TS2, 90.0, make_signal(SignalDirection.BUY))
+    # Fill price = 90 * 1.01 = 90.9
+    # Cash: 100099 - 90.9 = 100008.1
+    assert p.cash == pytest.approx(100008.1)
+    assert rec.pnl == pytest.approx(10.0)  # ideal
+    assert rec.slippage_cost == pytest.approx(1.0 + 0.9)
+
+
+def test_no_commission_backward_compat():
+    """Default (no commission/slippage) gives identical results to original."""
+    p = Portfolio(initial_capital=10_000, quantity_per_trade=1.0)
+    p.open_long("AAPL", TS, 100.0, make_signal())
+    assert p.cash == pytest.approx(9900.0)
+    rec = p.close_long(TS2, 110.0, make_signal(SignalDirection.SELL))
+    assert rec.pnl == pytest.approx(10.0)
+    assert rec.commission == pytest.approx(0.0)
+    assert rec.slippage_cost == pytest.approx(0.0)
+    assert rec.net_pnl == pytest.approx(10.0)

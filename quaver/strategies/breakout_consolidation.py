@@ -215,6 +215,57 @@ class BreakoutConsolidationStrategy(BaseStrategy):
         )
 
     @classmethod
+    def get_parameter_schema(cls) -> dict[str, Any]:
+        """Return a JSON Schema describing accepted parameters.
+
+        :returns: JSON Schema object with parameter types, constraints, and
+            defaults.
+        :rtype: dict[str, Any]
+        """
+        return {
+            "type": "object",
+            "properties": {
+                "ma_period": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 50,
+                    "description": "Trend-filter SMA window.",
+                },
+                "consolidation_period": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 20,
+                    "description": "Lookback for range and breakout ceiling.",
+                },
+                "range_max_pct": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "default": 0.10,
+                    "description": "Maximum allowed range as a fraction of price (e.g. 0.10 = 10%).",
+                },
+                "atr_period": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 14,
+                    "description": "ATR lookback period.",
+                },
+                "atr_lookback": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 10,
+                    "description": "Number of bars to look back for ATR decline check.",
+                },
+                "volume_sma_period": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 20,
+                    "description": "Volume SMA window for confirmation.",
+                },
+            },
+            "required": list(_DEFAULTS.keys()),
+        }
+
+    @classmethod
     def get_default_parameters(cls) -> dict[str, Any]:
         """Return a copy of the default parameter dictionary.
 

@@ -220,6 +220,69 @@ class ReversalSupportStrategy(BaseStrategy):
         )
 
     @classmethod
+    def get_parameter_schema(cls) -> dict[str, Any]:
+        """Return a JSON Schema describing accepted parameters.
+
+        :returns: JSON Schema object with parameter types, constraints, and
+            defaults.
+        :rtype: dict[str, Any]
+        """
+        return {
+            "type": "object",
+            "properties": {
+                "ma_fast": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 20,
+                    "description": "Short-term MA window (used as target).",
+                },
+                "ma_medium": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 50,
+                    "description": "Medium-term MA window (used as target).",
+                },
+                "ma_slow": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 200,
+                    "description": "Long-term MA window for structural-health filter.",
+                },
+                "rsi_period": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 14,
+                    "description": "RSI lookback period.",
+                },
+                "rsi_threshold": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 30,
+                    "description": "RSI must be below this value for an oversold condition.",
+                },
+                "max_dist_ma200": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "default": 0.20,
+                    "description": "Maximum allowed fractional distance from MA(ma_slow) (e.g. 0.20 = 20%).",
+                },
+                "support_period": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 20,
+                    "description": "Lookback for the rolling low (support level).",
+                },
+                "support_tolerance": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "default": 0.03,
+                    "description": "Maximum fraction above the rolling low to be considered near support (e.g. 0.03 = 3%).",
+                },
+            },
+            "required": list(_DEFAULTS.keys()),
+        }
+
+    @classmethod
     def get_default_parameters(cls) -> dict[str, Any]:
         """Return a copy of the default parameter dictionary.
 
