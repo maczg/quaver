@@ -99,6 +99,14 @@ def test_summary_keys():
         "profit_factor",
         "sharpe_ratio",
         "max_drawdown_pct",
+        "total_commission",
+        "total_slippage",
+        "max_consecutive_wins",
+        "max_consecutive_losses",
+        "avg_win",
+        "avg_loss",
+        "recovery_factor",
+        "expectancy",
     }
     assert required_keys.issubset(s.keys())
 
@@ -110,6 +118,12 @@ def test_empty_result():
     assert r.max_drawdown == 0.0
     assert r.sharpe_ratio == 0.0
     assert r.profit_factor == 0.0
+    assert r.max_consecutive_wins == 0
+    assert r.max_consecutive_losses == 0
+    assert r.avg_win == 0.0
+    assert r.avg_loss == 0.0
+    assert r.recovery_factor == 0.0
+    assert r.expectancy == 0.0
 
 
 def test_summary_values_are_native_python_types():
@@ -122,3 +136,68 @@ def test_summary_values_are_native_python_types():
         assert type(value) in (int, float), (
             f"summary()['{key}'] is {type(value).__name__}, expected int or float"
         )
+
+
+# ── Phase 4: new metrics ────────────────────────────────────────────────────
+
+
+def test_max_consecutive_wins():
+    r = make_result([10.0, 5.0, -3.0, 8.0, 12.0, 1.0, -2.0])
+    assert r.max_consecutive_wins == 3  # trades 3,4,5
+
+
+def test_max_consecutive_losses():
+    r = make_result([10.0, -5.0, -3.0, -1.0, 8.0])
+    assert r.max_consecutive_losses == 3  # trades 1,2,3
+
+
+def test_max_consecutive_all_wins():
+    r = make_result([10.0, 5.0, 1.0])
+    assert r.max_consecutive_wins == 3
+    assert r.max_consecutive_losses == 0
+
+
+def test_max_consecutive_all_losses():
+    r = make_result([-10.0, -5.0])
+    assert r.max_consecutive_losses == 2
+    assert r.max_consecutive_wins == 0
+
+
+def test_avg_win():
+    r = make_result([10.0, -5.0, 8.0, -3.0])
+    assert r.avg_win == pytest.approx(9.0)  # (10+8)/2
+
+
+def test_avg_loss():
+    r = make_result([10.0, -5.0, 8.0, -3.0])
+    assert r.avg_loss == pytest.approx(-4.0)  # (-5+-3)/2
+
+
+def test_avg_win_no_wins():
+    r = make_result([-5.0, -3.0])
+    assert r.avg_win == 0.0
+
+
+def test_avg_loss_no_losses():
+    r = make_result([10.0, 5.0])
+    assert r.avg_loss == 0.0
+
+
+def test_recovery_factor():
+    # total_return = 5/10000 = 0.0005
+    # max_drawdown: cum = [10, 0, 5] → peak=10, trough=0 → dd = -10/10000 = -0.001
+    # recovery_factor = 0.0005 / 0.001 = 0.5
+    r = make_result([10.0, -10.0, 5.0], initial=10_000.0)
+    assert r.recovery_factor == pytest.approx(0.5, rel=1e-3)
+
+
+def test_recovery_factor_no_drawdown():
+    r = make_result([10.0, 5.0])
+    assert r.recovery_factor == 0.0
+
+
+def test_expectancy():
+    # win_rate = 0.5, avg_win = 9.0, avg_loss = -4.0
+    # expectancy = 0.5 * 9 + 0.5 * (-4) = 4.5 - 2.0 = 2.5
+    r = make_result([10.0, -5.0, 8.0, -3.0])
+    assert r.expectancy == pytest.approx(2.5)

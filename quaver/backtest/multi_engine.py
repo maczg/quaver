@@ -8,7 +8,7 @@ from datetime import datetime
 import pandas as pd
 
 from quaver.strategies.base import MultiAssetStrategy, SignalOutput
-from quaver.types import SignalDirection
+from quaver.types import ExitReason, SignalDirection
 from quaver.backtest.portfolio import Portfolio
 from quaver.backtest.result import BacktestResult
 
@@ -121,6 +121,21 @@ class MultiAssetBacktestEngine:
             if step < required:
                 continue
 
+            # Check exit triggers for all instruments before strategy.compute
+            triggered_instruments: set[str] = set()
+            for iid, portfolio in self.portfolios.items():
+                if portfolio.is_flat():
+                    continue
+                hl = self._get_high_low_at(candles_map[iid], ts)
+                if hl is None:
+                    continue
+                high, low = hl
+                trigger = portfolio.check_exit_triggers(ts, high, low)
+                if trigger is not None:
+                    reason, fill_price = trigger
+                    self._close_position(portfolio, ts, fill_price, signal=None, exit_reason=reason)
+                    triggered_instruments.add(iid)
+
             # Build window_map: each instrument's history up to (not including) ts
             window_map: dict[str, pd.DataFrame] = {}
             for iid, df in candles_map.items():
@@ -134,8 +149,10 @@ class MultiAssetBacktestEngine:
             if output is None:
                 continue
 
-            # Apply all signals atomically
+            # Apply all signals atomically (skip instruments that already exited)
             for instrument_id, signal in output.signals.items():
+                if instrument_id in triggered_instruments:
+                    continue
                 if instrument_id not in candles_map:
                     log.warning("Signal for unknown instrument '%s' — skipping", instrument_id)
                     continue
@@ -154,16 +171,43 @@ class MultiAssetBacktestEngine:
                 last_ts: datetime = last[self.ts_column]
                 last_price = float(last["close"])
                 log.debug("Force-closing open position for '%s' at end of data", iid)
-                pos = portfolio._open_position
-                if pos is not None and pos.direction == SignalDirection.BUY:
-                    portfolio.close_long(last_ts, last_price, signal=None)
-                else:
-                    portfolio.close_short(last_ts, last_price, signal=None)
+                self._close_position(
+                    portfolio,
+                    last_ts,
+                    last_price,
+                    signal=None,
+                    exit_reason=ExitReason.END_OF_DATA,
+                )
 
         return {
             iid: BacktestResult.from_portfolio(p, candles_map[iid], iid)
             for iid, p in self.portfolios.items()
         }
+
+    def _get_high_low_at(self, df: pd.DataFrame, ts: datetime) -> tuple[float, float] | None:
+        """Return ``(high, low)`` for ``df`` at timestamp ``ts``, or ``None``."""
+        rows = df[df[self.ts_column] == ts]
+        if rows.empty:
+            return None
+        row = rows.iloc[0]
+        return (float(row["high"]), float(row["low"]))
+
+    def _close_position(
+        self,
+        portfolio: Portfolio,
+        ts: datetime,
+        price: float,
+        signal: SignalOutput | None,
+        exit_reason: ExitReason | None = None,
+    ) -> None:
+        """Close the currently open position in the given portfolio."""
+        pos = portfolio._open_position
+        if pos is None:
+            return
+        if pos.direction == SignalDirection.BUY:
+            portfolio.close_long(ts, price, signal, exit_reason=exit_reason)
+        else:
+            portfolio.close_short(ts, price, signal, exit_reason=exit_reason)
 
     def _get_price_at(self, df: pd.DataFrame, ts: datetime) -> float | None:
         """Return the close price of ``df`` at timestamp ``ts``.
@@ -222,8 +266,7 @@ class MultiAssetBacktestEngine:
             else:
                 pos = portfolio._open_position
                 if pos is not None and pos.direction == SignalDirection.SELL:
-                    # Close-and-reverse: close the short, then open long
-                    portfolio.close_short(ts, price, signal)
+                    portfolio.close_short(ts, price, signal, exit_reason=ExitReason.SIGNAL)
                     portfolio.open_long(instrument_id, ts, price, signal)
                 else:
                     log.debug("BUY ignored for '%s': long position already open", instrument_id)
@@ -231,7 +274,7 @@ class MultiAssetBacktestEngine:
         elif direction == SignalDirection.SELL:
             pos = portfolio._open_position
             if pos is not None and pos.direction == SignalDirection.BUY:
-                portfolio.close_long(ts, price, signal)
+                portfolio.close_long(ts, price, signal, exit_reason=ExitReason.SIGNAL)
             elif portfolio.is_flat():
                 if self.allow_shorting:
                     portfolio.open_short(instrument_id, ts, price, signal)
@@ -245,11 +288,7 @@ class MultiAssetBacktestEngine:
 
         elif direction == SignalDirection.CLOSE:
             if not portfolio.is_flat():
-                pos = portfolio._open_position
-                if pos is not None and pos.direction == SignalDirection.BUY:
-                    portfolio.close_long(ts, price, signal)
-                else:
-                    portfolio.close_short(ts, price, signal)
+                self._close_position(portfolio, ts, price, signal, exit_reason=ExitReason.SIGNAL)
 
         elif direction == SignalDirection.HOLD:
             log.debug("HOLD for '%s' at %s — no action", instrument_id, ts)

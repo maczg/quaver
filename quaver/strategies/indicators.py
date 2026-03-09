@@ -502,3 +502,318 @@ def rolling_min(
     for i in range(period - 1, n):
         out[i] = np.nanmin(values[i - period + 1 : i + 1])
     return out
+
+
+# ── New indicators ───────────────────────────────────────────────────────────
+
+
+def ema(values: NDArray[np.float64], period: int) -> NDArray[np.float64]:
+    """Compute the Exponential Moving Average.
+
+    The seed value is the SMA of the first *period* elements. Subsequent
+    values use the standard EMA recursion::
+
+        EMA[i] = close[i] * k + EMA[i-1] * (1 - k)
+
+    where ``k = 2 / (period + 1)``.
+
+    :param values: One-dimensional array of input values.
+    :type values: NDArray[np.float64]
+    :param period: EMA lookback period. Must be >= 1.
+    :type period: int
+    :returns: Array of the same length as *values* with ``NaN`` for the
+        first ``period - 2`` positions (first valid value at index
+        ``period - 1``).
+    :rtype: NDArray[np.float64]
+    """
+    n = len(values)
+    out = np.full(n, np.nan)
+    if period < 1 or n < period:
+        return out
+    k = 2.0 / (period + 1)
+    out[period - 1] = float(np.mean(values[:period]))
+    for i in range(period, n):
+        out[i] = values[i] * k + out[i - 1] * (1 - k)
+    return out
+
+
+def macd(
+    close: NDArray[np.float64],
+    fast: int = 12,
+    slow: int = 26,
+    signal: int = 9,
+) -> tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]:
+    """Compute Moving Average Convergence Divergence.
+
+    The MACD line is the difference between the fast and slow EMAs. The
+    signal line is an EMA of the MACD line. The histogram is their
+    difference::
+
+        macd_line  = EMA(close, fast) - EMA(close, slow)
+        signal_line = EMA(macd_line, signal)
+        histogram   = macd_line - signal_line
+
+    :param close: One-dimensional array of closing prices.
+    :type close: NDArray[np.float64]
+    :param fast: Fast EMA period. Defaults to ``12``.
+    :type fast: int
+    :param slow: Slow EMA period. Defaults to ``26``.
+    :type slow: int
+    :param signal: Signal EMA period. Defaults to ``9``.
+    :type signal: int
+    :returns: ``(macd_line, signal_line, histogram)`` tuple. All arrays
+        have the same length as *close*.
+    :rtype: tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]
+    """
+    n = len(close)
+    nan_arr = np.full(n, np.nan)
+    if n < slow:
+        return nan_arr.copy(), nan_arr.copy(), nan_arr.copy()
+
+    ema_fast = ema(close, fast)
+    ema_slow = ema(close, slow)
+
+    macd_line = np.full(n, np.nan)
+    valid = ~np.isnan(ema_fast) & ~np.isnan(ema_slow)
+    macd_line[valid] = ema_fast[valid] - ema_slow[valid]
+
+    # Build a contiguous array from the first valid MACD value for signal EMA
+    first_valid = int(np.argmax(valid))
+    macd_valid_segment = macd_line[first_valid:]
+    signal_segment = ema(macd_valid_segment, signal)
+
+    signal_line = np.full(n, np.nan)
+    signal_line[first_valid:] = signal_segment
+
+    histogram = np.full(n, np.nan)
+    both_valid = ~np.isnan(macd_line) & ~np.isnan(signal_line)
+    histogram[both_valid] = macd_line[both_valid] - signal_line[both_valid]
+
+    return macd_line, signal_line, histogram
+
+
+def stochastic(
+    high: NDArray[np.float64],
+    low: NDArray[np.float64],
+    close: NDArray[np.float64],
+    period_k: int = 14,
+    period_d: int = 3,
+) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+    """Compute the Stochastic Oscillator (%K and %D).
+
+    %K measures where the close sits relative to the high-low range over
+    *period_k* bars::
+
+        %K = (close - lowest_low) / (highest_high - lowest_low) * 100
+
+    %D is the SMA of %K over *period_d* bars.
+
+    :param high: One-dimensional array of bar high prices.
+    :type high: NDArray[np.float64]
+    :param low: One-dimensional array of bar low prices.
+    :type low: NDArray[np.float64]
+    :param close: One-dimensional array of bar closing prices.
+    :type close: NDArray[np.float64]
+    :param period_k: Lookback period for %K. Defaults to ``14``.
+    :type period_k: int
+    :param period_d: SMA period for %D smoothing. Defaults to ``3``.
+    :type period_d: int
+    :returns: ``(%K, %D)`` tuple. Both arrays have the same length as
+        *close*.
+    :rtype: tuple[NDArray[np.float64], NDArray[np.float64]]
+    """
+    n = len(close)
+    nan2 = np.full(n, np.nan)
+    if period_k < 1 or n < period_k:
+        return nan2.copy(), nan2.copy()
+
+    highest = rolling_max(high, period_k)
+    lowest = rolling_min(low, period_k)
+
+    pct_k = np.full(n, np.nan)
+    denom = highest - lowest
+    valid = ~np.isnan(denom) & (denom != 0)
+    pct_k[valid] = (close[valid] - lowest[valid]) / denom[valid] * 100.0
+    # When denom == 0 (flat range) and we have enough data, %K = 50
+    flat = ~np.isnan(highest) & (denom == 0)
+    pct_k[flat] = 50.0
+
+    pct_d = sma(pct_k, period_d)
+    return pct_k, pct_d
+
+
+def obv(
+    close: NDArray[np.float64],
+    volume: NDArray[np.float64],
+) -> NDArray[np.float64]:
+    """Compute On-Balance Volume.
+
+    OBV is a cumulative total of volume, where volume is added on up-close
+    bars and subtracted on down-close bars::
+
+        OBV[0] = NaN
+        OBV[i] = OBV[i-1] + sign(close[i] - close[i-1]) * volume[i]
+
+    :param close: One-dimensional array of closing prices.
+    :type close: NDArray[np.float64]
+    :param volume: One-dimensional array of bar volumes.
+    :type volume: NDArray[np.float64]
+    :returns: Array of the same length as *close* with ``NaN`` at index 0.
+    :rtype: NDArray[np.float64]
+    """
+    n = len(close)
+    out = np.full(n, np.nan)
+    if n < 2:
+        return out
+    direction = np.sign(close[1:] - close[:-1])
+    signed_vol = direction * volume[1:]
+    out[1:] = np.cumsum(signed_vol)
+    return out
+
+
+def vwap(
+    high: NDArray[np.float64],
+    low: NDArray[np.float64],
+    close: NDArray[np.float64],
+    volume: NDArray[np.float64],
+) -> NDArray[np.float64]:
+    """Compute cumulative Volume-Weighted Average Price.
+
+    VWAP is the ratio of cumulative typical-price-weighted volume to
+    cumulative volume::
+
+        TP = (high + low + close) / 3
+        VWAP = cumsum(TP * volume) / cumsum(volume)
+
+    :param high: One-dimensional array of bar high prices.
+    :type high: NDArray[np.float64]
+    :param low: One-dimensional array of bar low prices.
+    :type low: NDArray[np.float64]
+    :param close: One-dimensional array of bar closing prices.
+    :type close: NDArray[np.float64]
+    :param volume: One-dimensional array of bar volumes.
+    :type volume: NDArray[np.float64]
+    :returns: Array of the same length as *close*. ``NaN`` wherever
+        cumulative volume is zero.
+    :rtype: NDArray[np.float64]
+    """
+    tp = (high + low + close) / 3.0
+    cum_tp_vol = np.cumsum(tp * volume)
+    cum_vol = np.cumsum(volume)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        out = np.where(cum_vol != 0, cum_tp_vol / cum_vol, np.nan)
+    return out.astype(np.float64)
+
+
+def cci(
+    high: NDArray[np.float64],
+    low: NDArray[np.float64],
+    close: NDArray[np.float64],
+    period: int = 20,
+    scalar: float = 0.015,
+) -> NDArray[np.float64]:
+    """Compute the Commodity Channel Index.
+
+    CCI measures how far the typical price deviates from its SMA,
+    normalised by mean absolute deviation::
+
+        TP  = (high + low + close) / 3
+        CCI = (TP - SMA(TP, period)) / (scalar * MAD(TP, period))
+
+    :param high: One-dimensional array of bar high prices.
+    :type high: NDArray[np.float64]
+    :param low: One-dimensional array of bar low prices.
+    :type low: NDArray[np.float64]
+    :param close: One-dimensional array of bar closing prices.
+    :type close: NDArray[np.float64]
+    :param period: Lookback period. Defaults to ``20``.
+    :type period: int
+    :param scalar: Scaling constant. Defaults to ``0.015``.
+    :type scalar: float
+    :returns: Array of the same length as *close* with ``NaN`` for the
+        first ``period - 1`` positions.
+    :rtype: NDArray[np.float64]
+    """
+    n = len(close)
+    out = np.full(n, np.nan)
+    if period < 1 or n < period:
+        return out
+
+    tp = (high + low + close) / 3.0
+    tp_sma = sma(tp, period)
+
+    for i in range(period - 1, n):
+        window = tp[i - period + 1 : i + 1]
+        mad = float(np.mean(np.abs(window - tp_sma[i])))
+        if mad == 0.0:
+            out[i] = 0.0
+        else:
+            out[i] = (tp[i] - tp_sma[i]) / (scalar * mad)
+    return out
+
+
+def donchian(
+    high: NDArray[np.float64],
+    low: NDArray[np.float64],
+    period: int = 20,
+) -> tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]:
+    """Compute Donchian Channels.
+
+    The upper channel is the rolling max of *high* and the lower channel
+    is the rolling min of *low*. The middle is their average::
+
+        upper  = rolling_max(high, period)
+        lower  = rolling_min(low, period)
+        middle = (upper + lower) / 2
+
+    :param high: One-dimensional array of bar high prices.
+    :type high: NDArray[np.float64]
+    :param low: One-dimensional array of bar low prices.
+    :type low: NDArray[np.float64]
+    :param period: Lookback period. Defaults to ``20``.
+    :type period: int
+    :returns: ``(upper, middle, lower)`` tuple. All arrays have the same
+        length as *high*.
+    :rtype: tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]
+    """
+    upper = rolling_max(high, period)
+    lower = rolling_min(low, period)
+    middle = (upper + lower) / 2.0
+    return upper, middle, lower
+
+
+def keltner(
+    high: NDArray[np.float64],
+    low: NDArray[np.float64],
+    close: NDArray[np.float64],
+    period: int = 20,
+    multiplier: float = 2.0,
+) -> tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]:
+    """Compute Keltner Channels.
+
+    The middle band is an EMA of *close*. Upper and lower bands are offset
+    by a multiple of the ATR::
+
+        middle = EMA(close, period)
+        upper  = middle + multiplier * ATR(high, low, close, period)
+        lower  = middle - multiplier * ATR(high, low, close, period)
+
+    :param high: One-dimensional array of bar high prices.
+    :type high: NDArray[np.float64]
+    :param low: One-dimensional array of bar low prices.
+    :type low: NDArray[np.float64]
+    :param close: One-dimensional array of bar closing prices.
+    :type close: NDArray[np.float64]
+    :param period: EMA and ATR lookback period. Defaults to ``20``.
+    :type period: int
+    :param multiplier: ATR multiplier for channel width. Defaults to ``2.0``.
+    :type multiplier: float
+    :returns: ``(upper, middle, lower)`` tuple. All arrays have the same
+        length as *close*.
+    :rtype: tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]
+    """
+    middle = ema(close, period)
+    atr_arr = atr(high, low, close, period)
+    upper = middle + multiplier * atr_arr
+    lower = middle - multiplier * atr_arr
+    return upper, middle, lower

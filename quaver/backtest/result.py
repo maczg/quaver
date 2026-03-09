@@ -228,23 +228,118 @@ class BacktestResult:
             return float("inf")
         return round(gross_profit / gross_loss, 4)
 
+    @property
+    def max_consecutive_wins(self) -> int:
+        """Longest streak of consecutive trades with ``pnl > 0``.
+
+        :returns: Length of the longest winning streak, or ``0`` if no trades.
+        :rtype: int
+        """
+        best = 0
+        current = 0
+        for t in self.trades:
+            if t.pnl > 0:
+                current += 1
+                if current > best:
+                    best = current
+            else:
+                current = 0
+        return best
+
+    @property
+    def max_consecutive_losses(self) -> int:
+        """Longest streak of consecutive trades with ``pnl <= 0``.
+
+        :returns: Length of the longest losing streak, or ``0`` if no trades.
+        :rtype: int
+        """
+        best = 0
+        current = 0
+        for t in self.trades:
+            if t.pnl <= 0:
+                current += 1
+                if current > best:
+                    best = current
+            else:
+                current = 0
+        return best
+
+    @property
+    def avg_win(self) -> float:
+        """Mean P&L of winning trades (``pnl > 0``).
+
+        Returns ``0.0`` when there are no winning trades.
+
+        :returns: Average winning P&L.
+        :rtype: float
+        """
+        wins = [t.pnl for t in self.trades if t.pnl > 0]
+        if not wins:
+            return 0.0
+        return sum(wins) / len(wins)
+
+    @property
+    def avg_loss(self) -> float:
+        """Mean P&L of losing trades (``pnl <= 0``), non-positive.
+
+        Returns ``0.0`` when there are no losing trades.
+
+        :returns: Average losing P&L (non-positive value).
+        :rtype: float
+        """
+        losses = [t.pnl for t in self.trades if t.pnl <= 0]
+        if not losses:
+            return 0.0
+        return sum(losses) / len(losses)
+
+    @property
+    def recovery_factor(self) -> float:
+        """Total return divided by the absolute value of max drawdown.
+
+        Returns ``0.0`` when there is no drawdown.
+
+        :returns: Recovery factor.
+        :rtype: float
+        """
+        dd = self.max_drawdown
+        if dd == 0.0:
+            return 0.0
+        return self.total_return / abs(dd)
+
+    @property
+    def expectancy(self) -> float:
+        """Expected P&L per trade based on win rate and average win/loss.
+
+        Formula::
+
+            expectancy = win_rate * avg_win + loss_rate * avg_loss
+
+        :returns: Expected value per trade.
+        :rtype: float
+        """
+        wr = self.win_rate
+        return wr * self.avg_win + (1.0 - wr) * self.avg_loss
+
+    @property
+    def total_commission(self) -> float:
+        """Sum of commissions across all trades.
+
+        :returns: Total commission in dollars.
+        :rtype: float
+        """
+        return sum(t.commission for t in self.trades)
+
+    @property
+    def total_slippage(self) -> float:
+        """Sum of slippage costs across all trades.
+
+        :returns: Total slippage cost in dollars.
+        :rtype: float
+        """
+        return sum(t.slippage_cost for t in self.trades)
+
     def summary(self) -> dict[str, object]:
         """Return all key metrics as a flat dictionary with rounded values.
-
-        The dictionary contains the following keys:
-
-        - ``instrument_id`` -- str
-        - ``initial_capital`` -- float, rounded to 2 dp
-        - ``final_cash`` -- float, rounded to 2 dp
-        - ``total_return_pct`` -- float, percentage rounded to 2 dp
-        - ``total_trades`` -- int
-        - ``winning_trades`` -- int
-        - ``losing_trades`` -- int
-        - ``win_rate_pct`` -- float, percentage rounded to 2 dp
-        - ``avg_pnl`` -- float, rounded to 4 dp
-        - ``profit_factor`` -- float
-        - ``sharpe_ratio`` -- float
-        - ``max_drawdown_pct`` -- float, percentage rounded to 2 dp
 
         :returns: Flat dictionary of performance metrics.
         :rtype: dict
@@ -262,6 +357,14 @@ class BacktestResult:
             "profit_factor": self.profit_factor,
             "sharpe_ratio": self.sharpe_ratio,
             "max_drawdown_pct": round(self.max_drawdown * 100, 2),
+            "total_commission": round(self.total_commission, 4),
+            "total_slippage": round(self.total_slippage, 4),
+            "max_consecutive_wins": self.max_consecutive_wins,
+            "max_consecutive_losses": self.max_consecutive_losses,
+            "avg_win": round(self.avg_win, 4),
+            "avg_loss": round(self.avg_loss, 4),
+            "recovery_factor": round(self.recovery_factor, 4),
+            "expectancy": round(self.expectancy, 4),
         }
 
     @classmethod
