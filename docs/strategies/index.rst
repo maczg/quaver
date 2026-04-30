@@ -13,3 +13,4 @@ including the financial background, signal logic, and tuning parameters.
    breakout_consolidation
    pullback_trend
    reversial_support
+   time_series_momentum

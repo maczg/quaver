@@ -80,3 +80,11 @@ Reversal at Support
    :members:
    :undoc-members:
    :show-inheritance:
+
+Time-Series Momentum
+--------------------
+
+.. automodule:: quaver.strategies.time_series_momentum
+   :members:
+   :undoc-members:
+   :show-inheritance:

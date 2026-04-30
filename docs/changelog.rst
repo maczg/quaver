@@ -1,6 +1,30 @@
 Changelog
 =========
 
+Unreleased
+----------
+
+Features
+^^^^^^^^
+
+- Add Time-Series Momentum (TSMOM) strategy engine (``1d5c374``)
+
+  - ``time_series_momentum`` — trend-following by sign of trailing return,
+    following Moskowitz, Ooi & Pedersen (2012)
+  - Optional ``skip_period`` implements the classic 12-1 momentum convention
+    (Asness, Moskowitz & Pedersen, 2013) to neutralise short-horizon
+    reversal contamination
+  - Confidence scales linearly with the magnitude of the trailing return,
+    saturating at a 10 % move
+  - Structurally complementary to the mean-reversion engines: profits in
+    persistent directional regimes where mean-reversion bleeds
+
+Documentation
+^^^^^^^^^^^^^
+
+- Add narrative strategy guide for time-series momentum and wire it into
+  the Sphinx API reference
+
 v0.1.2 — 2026-03-09
 --------------------
 
