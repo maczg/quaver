@@ -109,21 +109,13 @@ class TimeSeriesMomentumStrategy(BaseStrategy):
         threshold = self.parameters.get("threshold")
 
         if not isinstance(lookback, int) or lookback < 2:
-            raise ValueError(
-                f"lookback_period must be an integer >= 2, got {lookback!r}"
-            )
+            raise ValueError(f"lookback_period must be an integer >= 2, got {lookback!r}")
         if not isinstance(skip, int) or skip < 0:
-            raise ValueError(
-                f"skip_period must be a non-negative integer, got {skip!r}"
-            )
+            raise ValueError(f"skip_period must be a non-negative integer, got {skip!r}")
         if skip >= lookback:
-            raise ValueError(
-                f"skip_period ({skip}) must be less than lookback_period ({lookback})"
-            )
+            raise ValueError(f"skip_period ({skip}) must be less than lookback_period ({lookback})")
         if not isinstance(threshold, (int, float)) or threshold < 0:
-            raise ValueError(
-                f"threshold must be a non-negative number, got {threshold!r}"
-            )
+            raise ValueError(f"threshold must be a non-negative number, got {threshold!r}")
 
     def get_required_candle_count(self) -> int:
         """Return the minimum number of historical candles required.
@@ -181,19 +173,14 @@ class TimeSeriesMomentumStrategy(BaseStrategy):
         if abs(trailing_return) <= threshold:
             return None
 
-        direction = (
-            SignalDirection.BUY if trailing_return > 0 else SignalDirection.SELL
-        )
+        direction = SignalDirection.BUY if trailing_return > 0 else SignalDirection.SELL
         # Confidence: 10 % return → ~1.0; smaller returns scale linearly.
         raw_confidence = min(abs(trailing_return) / 0.10, 1.0)
 
         return SignalOutput(
             direction=direction,
             confidence=round(raw_confidence, 4),
-            notes=(
-                f"trailing_return={trailing_return:.4f} "
-                f"lookback={lookback} skip={skip}"
-            ),
+            notes=(f"trailing_return={trailing_return:.4f} lookback={lookback} skip={skip}"),
             metadata={
                 "lookback_period": lookback,
                 "skip_period": skip,
@@ -238,8 +225,7 @@ class TimeSeriesMomentumStrategy(BaseStrategy):
                     "minimum": 0,
                     "default": 0.0,
                     "description": (
-                        "Minimum absolute trailing return to trigger a signal "
-                        "(e.g. 0.02 = 2%)."
+                        "Minimum absolute trailing return to trigger a signal (e.g. 0.02 = 2%)."
                     ),
                 },
             },
