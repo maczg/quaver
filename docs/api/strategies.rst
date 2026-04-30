@@ -17,14 +17,6 @@ Registry
    :undoc-members:
    :show-inheritance:
 
-Indicators
-----------
-
-.. automodule:: quaver.strategies.indicators
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 Mean Reversion
 --------------
 
