@@ -17,14 +17,6 @@ Registry
    :undoc-members:
    :show-inheritance:
 
-Indicators
-----------
-
-.. automodule:: quaver.strategies.indicators
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 Mean Reversion
 --------------
 
@@ -77,6 +69,14 @@ Reversal at Support
 -------------------
 
 .. automodule:: quaver.strategies.reversal_support
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Time-Series Momentum
+--------------------
+
+.. automodule:: quaver.strategies.time_series_momentum
    :members:
    :undoc-members:
    :show-inheritance:

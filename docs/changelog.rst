@@ -1,6 +1,56 @@
 Changelog
 =========
 
+v0.1.3 — 2026-04-30
+--------------------
+
+Features
+^^^^^^^^
+
+- Add Time-Series Momentum (TSMOM) strategy engine (``1d5c374``)
+
+  - ``time_series_momentum`` — trend-following by sign of trailing return,
+    following Moskowitz, Ooi & Pedersen (2012)
+  - Optional ``skip_period`` implements the classic 12-1 momentum convention
+    (Asness, Moskowitz & Pedersen, 2013) to neutralise short-horizon
+    reversal contamination
+  - Confidence scales linearly with the magnitude of the trailing return,
+    saturating at a 10 % move
+  - Structurally complementary to the mean-reversion engines: profits in
+    persistent directional regimes where mean-reversion bleeds
+
+Tests
+^^^^^
+
+- Add behavioural test suite covering all 7 strategy engines (``3705270``)
+
+  - Property-based pattern fixtures (linear trend, divergence, regime mix,
+    VSA stopping volume, breakout, pullback, reversal at support)
+  - Verifies signal direction, confidence range, and metadata invariants on
+    canonical inputs
+
+Documentation
+^^^^^^^^^^^^^
+
+- Add narrative strategy guide for time-series momentum and wire it into
+  the Sphinx API reference (``698d498``)
+- Fill remaining doc gaps (``541aa50``)
+
+  - Add ``size_by_risk`` automodule to backtest API reference
+  - Add narrative guide for ``pairs_mean_reversion``
+  - New dedicated indicators reference page (moved out of strategies API
+    page, with a five-family overview)
+  - Refresh ``getting_started`` Available Strategies list with the four
+    engines added since v0.1.0
+  - Rename misspelled ``reversial_support.md`` → ``reversal_support.md``
+
+Chore
+^^^^^
+
+- Apply ``ruff format`` to TSMOM module and test conftest (``d4bd31b``)
+- Gitignore ``.claude/settings.local.json`` and sync project metadata
+  (``033a55c``)
+
 v0.1.2 — 2026-03-09
 --------------------
 

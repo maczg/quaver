@@ -6,4 +6,5 @@ API Reference
 
    types
    strategies
+   indicators
    backtest

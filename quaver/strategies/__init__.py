@@ -21,6 +21,7 @@ Built-in engines registered on import:
 - ``quaver.strategies.breakout_consolidation``
 - ``quaver.strategies.pullback_trend``
 - ``quaver.strategies.reversal_support``
+- ``quaver.strategies.time_series_momentum``
 
 After importing this package the full list of registered engine names is
 available via
@@ -35,3 +36,4 @@ import quaver.strategies.pairs_mean_reversion  # noqa: F401
 import quaver.strategies.breakout_consolidation  # noqa: F401
 import quaver.strategies.pullback_trend  # noqa: F401
 import quaver.strategies.reversal_support  # noqa: F401
+import quaver.strategies.time_series_momentum  # noqa: F401

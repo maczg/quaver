@@ -48,3 +48,11 @@ Data Utilities
    :members:
    :undoc-members:
    :show-inheritance:
+
+Position Sizing
+---------------
+
+.. automodule:: quaver.backtest.sizing
+   :members:
+   :undoc-members:
+   :show-inheritance:

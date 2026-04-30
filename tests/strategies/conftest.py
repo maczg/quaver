@@ -53,9 +53,7 @@ def linear_trend(
     ts = start
     price = start_price
     for _ in range(n):
-        rows.append(
-            _row(ts, price, price + spread, price - spread, price + drift, volume)
-        )
+        rows.append(_row(ts, price, price + spread, price - spread, price + drift, volume))
         price += drift
         ts += timedelta(days=1)
     return pd.DataFrame(rows)
@@ -239,8 +237,8 @@ def vsa_stopping_volume_pattern(
     # close_position = (close - low) / (high - low) must exceed 0.4.
     o = price
     c = price - 0.05  # bear by a hair
-    high = c + 0.05   # close very near the top of the bar
-    low = c - 0.35    # total spread = 0.4 vs ~1.0 average → spread_rel ≈ 0.4
+    high = c + 0.05  # close very near the top of the bar
+    low = c - 0.35  # total spread = 0.4 vs ~1.0 average → spread_rel ≈ 0.4
     rows.append(_row(ts, o, high, low, c, base_volume * final_volume_mult))
     return pd.DataFrame(rows)
 

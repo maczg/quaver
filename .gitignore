@@ -48,3 +48,6 @@ coverage.xml
 # Sphinx documentation
 docs/_build/
 
+# Claude Code personal settings (per-user, not committed)
+.claude/settings.local.json
+

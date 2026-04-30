@@ -98,3 +98,7 @@ Available Strategies
 - ``regime_mean_reversion`` — Regime-based probabilistic mean reversion
 - ``vsa_stopping_volume`` — VSA stopping-volume reversal pattern
 - ``pairs_mean_reversion`` — Statistical arbitrage pairs trading
+- ``breakout_consolidation`` — Breakout from low-volatility consolidation
+- ``pullback_trend`` — Trend continuation on pullback to short-term MA
+- ``reversal_support`` — Counter-trend reversal at support with RSI confirmation
+- ``time_series_momentum`` — Trend-following by sign of trailing return (TSMOM)
